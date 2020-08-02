@@ -1,0 +1,281 @@
+---
+title: "Assignment 1"
+author: "zewahyu"
+output:
+  html_document:
+    highlight: tango
+    theme: paper
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE) # provide some global options for code chunks
+```
+
+### 1. New Functions 
+
+In this task, you will learn some new functions by yourself. These functions were not formally introduced in our lectures, you can use the `help()` function or `?` help operator to access the help document, or simply Google them. Then try to answer the questions.   
+
+**(a)** `all()` and `any()`
+
+Two people were asked to give their preferences between two options: [Facebook, Twitter], [Firefox, Chrome], [Mac, PC], [Summer, Winter]. Their results are given below.
+
+```{r}
+alice.prefs <- c("Twitter", "Chrome", "Mac", "Summer")
+bob.prefs <- c("Facebook", "Chrome", "PC", "Summer")
+```
+
+Use the `all()` function to determine if the two people have identical preferences. (Your code should ouput a single logical value, either `TRUE` or `FALSE`)
+
+```{r}
+# Edit me 
+all(alice.prefs==bob.prefs)
+
+```
+
+Use the `any()` function to determine if the two people have any preferences in common.  (Your code should output a single logical value, either `TRUE` or `FALSE`)
+
+```{r}
+# Edit me 
+any(alice.prefs==bob.prefs)
+
+```
+
+
+**(b)** `is.na()`
+
+Let `age` be the vector defined below.
+
+```{r}
+age <- c(18, NA, 25, 71, NA, 45, NA, NA, 18)
+```
+
+Use the function `is.na()` to check whether each entry of `age` is missing (i.e., `NA`). Your expression should return a logical vector having the same length as `age`.     
+
+```{r}
+# Edit me 
+is.na(age)
+
+```
+
+
+**(c)** `which()` 
+
+Use the funtion `which()` to return the indices of missing values in `age`.
+
+```{r}
+# Edit me 
+which(is.na(age))
+
+```
+
+
+### 2. Trimmed Means
+
+**(a)** Writing a function for calculating the trimmed mean
+
+Write a function that calculates the mean of a numeric vector `x`, ignoring the `s` smallest and `l` largest values (this is a trimmed mean).   
+
+E.g., if `x = c(1, 7, 3, 2, 5, 0.5, 9, 10)`, `s = 1`, and `l = 2`, the function would return the mean of `c(1, 7, 3, 2, 5)` (this is `x` with the 1 smallest value (0.5) and the 2 largest values (9, 10) removed).
+
+The function should use the `length()` function to check if `x` has at least `s + l + 1` values. If `x` is shorter than `s + l + 1`, the function should use the `message()` function to tell the user that the vector can't be trimmed as requested.   
+
+If `x` has at least a length of `s + l + 1`, your function should return the trimmed mean.
+
+**Tips**: use the function `sort()` to sort the vector.
+
+```{r eval=FALSE}
+# here's a function skeleton to get you started
+# fill me in with an informative comment
+# describing what the function does
+
+trimmedMean <- function(x, s = 0, l = 0) {
+  
+  # Edit me 
+  if(length(x) < s+l+1) # Give warning message if x is too short to be trimmed
+    return(message("The vector can't be trimmed as requested."))
+  
+  x.sorted <- sort(x) # sort x in increasing order
+  start <- 1+s        # starting index after not including the first s values
+  end <- length(x)-l  # ending index after not including the last l values
+  return(mean(x.sorted[start:end])) # return the mean of the trimmed sorted x
+}
+
+trimmedMean(c(1, 7, 3, 2, 5, 0.5, 9, 10), 1, 2)
+
+```
+
+
+**(b)** Applying the function with `mapply()`
+
+```{r}
+# set seed to make sure everyone's random vectors are generated the same
+set.seed(100) 
+list.random <- list(x = rnorm(50), y = runif(65), z = rt(100, df = 1.5)) 
+
+```
+
+We can use the function `hist()` to display the histogram for a vector: 
+
+```{r}
+histx <- hist(list.random$x) 
+```
+
+`histx` contains the information about the histogram, and the `counts` component gives the number of observations falling in each bin of histogram `histx`: 
+
+```{r}
+histx
+histx$counts
+```
+
+Using the `lapply` function, create a list called `list.hist`, whose components are the histograms for the vectors in `list.random`. 
+
+```{r}
+# Edit me  
+list.hist <- lapply(list.random, hist)
+
+```
+
+Then, using the `mapply` function with the function `trimmedMean` from part (a), create a list whose components are the trimmed means of the vectors in `list.random`, taking `s = the number of observations in the first bin` and `l = the number of observations in the last bin`.
+
+```{r}
+# Edit me 
+mapply(function(x, i) trimmedMean(x,
+                                        s = list.hist[[i]]$count[1],
+                                        l = list.hist[[i]]$count[length(list.hist[[i]]$count)]),
+       x = list.random, i = seq_len(length(list.random)), SIMPLIFY = FALSE)
+# i = 1, 2, ..., length(list.random)
+# s = the number inside the first count element from the i-th histogram
+# l = the number inside the last count element from the i-th histogram
+
+```
+
+
+## 3. Rio Olympics
+
+We're going to examine data from the 2016 Summer Olympics in Rio de Janeiro. This dataset includes the official statistics on the 11,538 athletes (6,333 men and 5,205 women) and 306 events at the 2016 Rio Olympic Games. You can read more about this data set at https://github.com/flother/rio2016.
+
+Download the data `rio.csv` from Canvas, read it into your R session and store it as `rio`.
+
+```{r}
+rio <- read.csv("rio.csv")
+head(rio)
+```
+
+Use `rio` to answer the following questions. 
+ 
+**(a)** Use `sapply` and `tapply` to count each type of medals (gold, silver and bronze) for each country. Then, use `order()` function to sort countries in the medal chart first by gold, second by silver, and last by bronze. Name your result `medal_chart`. The expected output is the following:
+
+```
+    gold silver bronze
+USA  139     54     71
+GBR   64     55     26
+RUS   52     29     34
+GER   49     44     67
+CHN   46     30     37
+BRA   37      8      6
+AUS   23     34     25
+ARG   21      1      0
+FRA   20     54     21
+JPN   17     13     35
+DEN   15     10     16
+......
+```
+
+```{r}
+# Edit me
+medal_chart <- sapply(rio[c("gold", "silver", "bronze")],
+                      function(x) tapply(x, rio$nationality, sum))
+medal_chart <- medal_chart[order(medal_chart[,"gold"], medal_chart[,"silver"],
+                                 medal_chart[,"bronze"], decreasing = TRUE),]
+
+head(medal_chart, n=11)
+
+```
+
+
+**(b)** Count the number of medals for each country. Save the result as `medal_count`, which should be a named vector. Count the number of athletes for each country. Save the result as `ath_count`, which is also a named vector.  
+
+```{r}
+# Edit me
+medal_count <- rowSums(sapply(rio[c("gold", "silver", "bronze")],
+                       function(x) tapply(x, rio$nationality, sum)))
+head(medal_count, n=11)
+ath_count <- tapply(rio$id, rio$nationality, length)
+head(ath_count, n=11)
+
+```
+
+
+**(c)** Wrtie code to answer the following questions.
+
+Among the countries that had zero medals, which had the most athletes? And how many athletes was this? 
+
+```{r}
+# Edit me
+athletes.0 <- ath_count[medal_count==0]
+names(athletes.0)[which.max(athletes.0)] # CHI
+max(athletes.0) # 42 Athletes
+
+# Alternative
+# head(athletes.0[order(athletes.0, decreasing = T)], n=1) # CHI (42 Athletes)
+
+```
+
+**(d)** Write code to answer the following questions.
+
+For which sports, did female athletes get more gold medals than male athletes?     
+For which sports, did male athletes get more gold medals than female athletes?     
+For which sports, did male and female athletes get the same number of gold medals?     
+
+```{r}
+# Edit me
+
+sport_sex <- tapply(rio$gold, list(rio$sport, rio$sex), sum)
+
+# Question 1: For which sports, did female athletes get more gold medals than male athletes?
+# Answer: aquatics, fencing, gymnastics, handball
+q1 <- vector("character")
+for(i in seq_len(nrow(sport_sex))){
+  if(sport_sex[i,"female"] > sport_sex[i,"male"]){
+    q1[length(q1)+1]<-dimnames(sport_sex)[[1]][i]
+  }
+}
+q1
+
+# Alternative
+#which(sport_sex[,"female"] > sport_sex[,"male"])
+
+
+# Question 2: For which sports, did male athletes get more gold medals than female athletes?
+# Answer: athletics, boxing, canoe, cycling, equestrian, hockey, rowing, rugby sevens, sailing, shooting, weightlifting, wrestling
+q2 <- vector("character")
+for(i in seq_len(nrow(sport_sex))){
+  if(sport_sex[i,"female"] < sport_sex[i,"male"]){
+    q2[length(q2)+1]<-dimnames(sport_sex)[[1]][i]
+  }
+}
+q2
+
+# Alternative
+#which(sport_sex[,"female"] < sport_sex[,"male"])
+
+
+# Question 3: For which sports, did male and female athletes get the same number of gold medals?
+# Answer: archery, badminton, basketball, football, golf, judo, modern pentathlon, table tennis, taekwondo, tennis, triathlon, volleyball
+q3 <- vector("character")
+for(i in seq_len(nrow(sport_sex))){
+  if(sport_sex[i,"female"] == sport_sex[i,"male"]){
+    q3[length(q3)+1]<-dimnames(sport_sex)[[1]][i]
+  }
+}
+q3
+
+# Alternative
+#which(sport_sex[,"female"] == sport_sex[,"male"])
+
+```
+
+
+
