@@ -1,0 +1,149 @@
+---
+title: "Control Structures in R"
+authur: "zewahyu"
+output:
+  html_document:
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE)
+
+```
+
+
+In today's lab, we are going to use loop and conditional constructs in R to perform exploratory data analysis on one of the prepackaged datasets that came with R's base installation.
+
+
+As we know, R comes with a series of default packages as part of its base or default installation. Loading a package that came with its base installation can be accomplished by using the `library()` function. 
+ 
+```{r ex="data_import", type="sample-code"}
+library(MASS)
+```
+
+<Br>
+Now you have access to all functions and datasets in the `MASS` package. You can refer to the [package manual](https://cran.r-project.org/web/packages/MASS/) to see what functions and datasets are actually included in this pakage.
+
+
+We will load and manipulate one of the datasets in the `MASS` package. `UScereal` is a built-in data frame in this package with 65 rows on 11 variables. Three of the variables ("mfr" for manufacturer, "shelf" for the display shelf with three categories counting from the floor, and "vitamins") are categorical, and the others are numeric. You can type `?UScereal` in the console to know more about the data frame.
+
+We begin with examining the dataset with the `str()` function to understand its structure and the `summary()` function to obtain the summary statistics of all variables it contains:
+
+```{r ex="data_summary", type="pre-exercise-code"}
+library(MASS)
+```
+
+```{r ex="data_summary", type="sample-code", height="600"}
+summary(UScereal)
+str(UScereal)
+```
+<br>
+
+### Task1 
+
+For a categorical variable stored as a factor, we can use `table()` to build a table of the counts at all its factor levels. Next, we are going to apply `table()` to the first column of `UScereal` and sort the factor levels in the resulting table by count in descending order (hint: set `decreaing =  TRUE` for `order()`):   
+
+```{r Task1, type="sample-code", height="600", echo=FALSE}
+
+# 1.1 Use is.factor() to see if the 1st variable is stored as a factor in UScereal
+is.factor(UScereal[[1]])
+
+# 1.2 Create a variale named count_table to hold the table of counts temporarily for sorting 
+count_table <- table(UScereal[[1]])
+count_table
+
+# 1.3 Apply typeof() to count_table to see that it contains a 1-D array of integer values
+typeof(count_table)
+
+# 1.4 Apply order() to count_table and reassign the sorted table to count_table
+count_table[order(count_table, decreasing = TRUE)] # sort(count_table, decreasing = T)
+```
+<br>
+
+### Task2
+
+Suppose that we use a **for** loop in conjuction with the **if-else** construct to implement the `summary()` function naively; that is, for a categorical variable stored as a factor, the code returns the counts of different levels, with these levels being sorted by count in descending order, while for a numeric varaible, it returns the mean and median.
+
+The result will be stored in a list with each component being labeled with the corresponding variable's name. (hint: `median()` and `mean()`)
+
+```{r Task2, type="sample-code", height="600", echo=FALSE}
+
+
+# 2.1 Use vector() to create an empty vector, summary_list,  which contains the same number of the elements as that of columns in UScereal and whose elements are lists.
+summary_list <- vector("list", 11)
+summary_list
+
+# 2.2 Specify the for loop with necessary conditionals
+for(i in seq_along(UScereal)){
+  if( is.factor(UScereal[[i]]) ){
+    tmp_table <- sort(table(UScereal[[i]]), decreasing = T)
+    summary_list[[i]] <- list(freq_table=tmp_table)
+  }
+  else{
+    summary_list[[i]] <- list(mean=mean(UScereal[[i]]),median=median(UScereal[[i]]))
+  }
+}
+summary_list
+
+# 2.3 Use the column names of the data frame to label the corresponding components in summary_list
+names(summary_list) <- names(UScereal)
+summary_list
+names(summary_list)
+
+#How to change the name for only one item?
+names(summary_list)[1] <- "a"
+
+```
+<br>
+
+### Task 3
+
+Replace the **if-else** statement with multiple selection allowed by `switch()`:
+
+```{r ex="exercise-3", type="pre-exercise-code"}
+library(MASS)
+```
+
+```{r Task3, type="sample-code", height="600", echo=FALSE}
+
+# 3.1 Use vector() to create an empty vector, summary_list,  which contains the same number of the elements as that of columns in UScereal and whose elements are lists.
+summary_list <- vector("list", 11)
+summary_list
+
+# 3.2 Specify the for loop with switch()
+for(i in seq_along(UScereal)){
+  x<-as.character(i)
+  switch(x, "1"=,
+            "11"={tmp_table <- sort(table(UScereal[[i]]), decreasing = T)
+                  summary_list[[i]] <- list(freq_table=tmp_table)},
+            summary_list[[i]] <-
+              list(mean=mean(UScereal[[i]]),median=median(UScereal[[i]])) )
+}
+summary_list
+
+# 3.3 Use the column names of the data frame to label the corresponding components in summary_list
+names(summary_list) <- names(UScereal)
+summary_list
+  
+```
+<br>
+
+### Task 4
+
+What if we want to convert one numeric variable, say `calories`, to a categorical one. The coding scheme we use is coding a value below the 33th percentile to `low`, between the 33th and 66th percentile to `medium`, and above the 66th percentile `high`. Implement the coding scheme with the `ifelse()` function:
+
+
+```{r ex="exercise-4", type="pre-exercise-code"}
+cutoff <- quantile(UScereal$calories, probs = c(0.33, 0.67))
+
+```
+
+```{r Task4, type="sample-code", height="600", echo=FALSE}
+
+
+## Use the ifelse() function to implement the coding rule
+stat <- UScereal
+stat$calories <- factor(ifelse(stat$calories<cutoff[1],"low",
+                        ifelse(stat$calories<cutoff[2],"medium","high")))
+stat$calories
+```

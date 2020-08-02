@@ -1,0 +1,151 @@
+---
+title: "Lab13"
+author: "zewahyu"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(RSelenium)
+library(rvest)
+library(tidyverse)
+```
+
+In today's lab, we will apply the Rselenium, rvest as well as text analysis. What we will do is:
+
+1) Get the Reviews from one of my favourite restaurant in Croatia https://en.tripadvisor.com.hk/Restaurant_Review-g295370-d1966020-Reviews-Konoba_Nevera-Split_Split_Dalmatia_County_Dalmatia.html
+
+2) Anaysis the review, see if it is positive
+
+## Part 1
+
+To get the reviews, we need to use Rselenium to get the data from the browser. First, we need to connect to driver, open the broswer and nevigate to the website we want. The code will be following:
+
+```{r}
+remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4444,
+                      browserName = "chrome")
+
+remDr$open(silent = TRUE)
+
+remDr$navigate("https://en.tripadvisor.com.hk/Restaurant_Review-g295370-d1966020-Reviews-Konoba_Nevera-Split_Split_Dalmatia_County_Dalmatia.html")
+
+```
+
+Now you can see the page of the restaurant. Lets go to the review part. You can see there are some `More`, you need to click on it to expand otherwise we cannot get the complete reviews. Lets locate it and click on the `More` by the code.
+
+```{r}
+more<- remDr$findElements(using = "css", ".ppr_rup.ppr_priv_location_reviews_list_resp .taLnk.ulBlueLinks")
+
+for (i in rev(seq_along(more))){
+  more[[i]]$clickElement()
+  Sys.sleep(3)
+}
+```
+
+Here is the explanation for the above code. As we know, we need to get the element first before clicking on it. However, in this case, we have 7 more button in the first page and they are all in the same class. What we need to do is to use `findElements` instead of `findElement` we have used in the previous lab to get a list of Elements, and then use for loop to click on it one by one. In the for loop, I use rev() due to the setting of the website. After clicking on the first `More`, other review will also be expended. Therefore, I do it from the 6th `More` to better show you the result.
+
+Please note that there is a space in the class ".ppr_rup.ppr_priv_location_reviews_list_resp .taLnk.ulBlueLinks".
+`taLnk.ulBlueLinks` are the subclass of `pr_rup.ppr_priv_location_reviews_list_resp`. By indicating the parent class and subclass, we can locate the element accurately because sometimes the element are in the same class but the parent class of it are different. Below is the example.
+
+Suppose we need to locate the page number button, the class of it is `pageNum   cx_brand_refresh_phase2`. For page 1,2,3,4,5,6,42 they are all in the same class. Suppose when we apply findElements, there should be 7 item in our list. lets see what happen:
+
+```{r}
+page<- remDr$findElements(using = "css", ".pageNum.cx_brand_refresh_phase2")
+
+```
+
+We got more then 7 items in our lists. If you go to the bottom of the web page, there is another page list which has the same class. How to avoid it? We need to indicate the parent class.
+
+```{r}
+page<- remDr$findElements(using = "css", ".ppr_rup.ppr_priv_location_reviews_list_resp .pageNum.cx_brand_refresh_phase2")
+```
+
+After running this code, you can discover that all the page button for review. Next we need to specify which page we want to click on. Please note that they all are in the same class, but the attribute `data-page-number` are not the same. We can use this attribute to locate what we need. For example, when we need the second page, we can use for loop to check whether `data-page-number` == 2. 
+
+```{r}
+for (i in seq_along(page)){
+  if (page[[i]]$getElementAttribute("data-page-number")==2){
+    page[[i]]$clickElement()
+    break
+  }
+}
+```
+
+If we need to go to each page one by one, lets say first 5 page, the code will be following.
+```{r}
+for (num in 1:5){
+  page<- remDr$findElements(using = "css", ".ppr_rup.ppr_priv_location_reviews_list_resp .pageNum.cx_brand_refresh_phase2")
+  for (i in seq_along(page)){
+  if (page[[i]]$getElementAttribute("data-page-number")==num){
+    page[[i]]$clickElement()
+    Sys.sleep(5)
+    break
+  }
+}
+}
+```
+
+If we do not break the for loop after clicking on the element, it will show error since everytime we refresh our page, we need to do findElements again.
+
+Now we learnt how to go to each page of the reviews by using for loop. Lets add some code between so we can get all the review.
+
+```{r}
+#Get all the review from first 5 pages
+content <- ""
+for (num in 1:5){
+  page<- remDr$findElements(using = "css", ".ppr_rup.ppr_priv_location_reviews_list_resp .pageNum.cx_brand_refresh_phase2")
+  for (i in seq_along(page)){
+  if (page[[i]]$getElementAttribute("data-page-number")==num){
+    page[[i]]$getElementLocationInView()
+    page[[i]]$clickElement()
+    Sys.sleep(5)
+   
+    # Expend all the comment
+    more<- remDr$findElements(using = "css",".taLnk.ulBlueLinks")
+    more[[1]]$getElementLocationInView()
+    more[[1]]$clickElement()
+    Sys.sleep(3)
+    # Get the source
+    page_source <- remDr$getPageSource()[[1]]
+    page_html<-page_source %>% read_html()
+    
+    #Get the Reviews
+    Reviews <- html_nodes(page_html,".rev_wrap.ui_columns.is-multiline") 
+    result <- Reviews%>%html_node(".partial_entry") %>% html_text(trim = TRUE)
+    content<- c(content,result)
+    break
+  }
+  }
+  content<-content[2:length(content)]
+}
+content
+
+
+```
+
+## Part 2
+
+Now we got a vector storing the reviews, let do a analysis to see whether each reviews are positive.
+```{r}
+install.packages("tidytext")
+library(tidytext)
+```
+
+```{r}
+part2<-tibble(content)%>% #Make the reviews as tibble
+  mutate(Reviewnum=row_number())%>% #Create a id for each review
+  unnest_tokens(word,content)%>% # Split the review
+  anti_join(stop_words)%>% # Remove stop word
+  left_join(get_sentiments("bing"))%>% #Check it is positive or negative
+  count(Reviewnum,sentiment)%>% # Count the number of positive and negative word for each review
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = list(n = 0))%>% 
+  mutate(sentiment = positive - negative)%>% # The sentiment of the review
+  select(c(Reviewnum,sentiment))
+
+ifelse(part2$sentiment>=0,"positive","negative")
+
+table(ifelse(part2$sentiment>=0,"positive","negative"))
+
+```
+
+

@@ -1,0 +1,198 @@
+---
+title: "Exploring a Data Frame"
+author: "zewahyu"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+
+```
+
+## Introduction
+
+Data frames are the most common structure of storing data in R. Today's lab highlights some common functions in R we would like to use to explore a data frame before conducting any profound data analysis.
+
+## Loading the Data
+
+
+The dataset we are going to explore contains customer default records for a credit card company.
+
+### Method 1 - read.table
+We begin by loading the data from a .csv file (csv is short for comma-separated values) using the `read.table()` function. This function reads a file in table format and creates a **data frame** from it, with cases corresponding to lines and variables to fields in the file. 
+
+```{r load-data, message=FALSE, tidy=TRUE}
+default_data<-read.table("Default.csv", header = TRUE, sep = ",") 
+
+```
+
+The first argument supplied to `read.table()` is the pathname to the .csv file. It can be a path relative to the current **working directory** (we can use the `getwd()` command to find the current working directory),  which is, by default, the directory where this R Markdown file locates. If the directory doesn't contain the data file, we have to type the whole pathname (the **absolute path**) or to change the working directory by using setwd().
+
+```{r load-data_wd, message=FALSE, tidy=TRUE}
+getwd()
+#Windows
+#setwd("C:/Users/imjosh/Desktop")
+#Mac
+#setwd("/Users/Name/Desktop")
+default_data<-read.table("Default.csv", header = TRUE, sep = ",") 
+#Difference between read.csv and read.table
+```
+``` {r load-data-ab, message=FALSE, tidy=TRUE,eval=FALSE}
+default_data<-read.table("C:/Users/imjosh/Desktop/Default.csv", header = TRUE, sep = ",") #Absolute path
+```
+
+
+The `header` argument is used to specify whether the file contains the names of the variables as its first line. If the data has names for each of the columns on the top row, set `header = TRUE`. The `sep` argument is used to specify the field separator character. The default one is white space. 
+
+The funtion will convert columns to logical, integer, numeric, complex vectors or factors as appropriate automatically. You need to set `stringsAsFactors = T` if you need to convert character to factor ). 
+
+### Method 2 - read.csv
+```{r load_with_read_csv, eval=FALSE}
+#setwd("C:/Users/imjosh/Desktop")
+#default_data2<-read.csv("Default.csv")
+```
+### Method 3 - File Choose
+```{r load_with_file_choose,eval=FALSE}
+#default_data3<- read.csv(file.choose())
+```
+Once the data is loaded, we assign the data frame to a variable for later reference.
+
+
+## Exploring the Data Frame
+
+Before we do anything else, it is important to understand the structure of the data and that of any objects derived from it.
+
+```{r}
+typeof(default_data) 
+length(default_data)
+class(default_data)
+str(default_data)
+```
+
+The `dim()` function can be used to obtain the dimensions of the data frame (number of rows and number of columns). The `nrow()` and `ncol()` functions can be used to get the number of rows and number of columns, respectively.
+
+```{r}
+dim(default_data)            
+nrow(default_data)            
+ncol(default_data)          
+```
+
+Provide your code that uses `dim()` in conjunction with a subsetting operation instead of `nrow()` to get the number of rows:
+
+### Task 1
+```{r task1}
+dim(default_data)[1]
+
+```
+
+These are commands for obtaining an intuitive idea of what the data look like without revealing the entire data set, which could have millions of rows and thousands of columns. The `head()` function is used to obtain the first *n* observations and the `tail()` function to obtain the last *n* observations.
+
+```{r}
+head(default_data)           # extract the first few (default to 6) rows
+head(default_data, n = 10) 
+```
+
+Provide your code to display the last 5 rows:
+
+### Task 2
+```{r task2}
+tail(default_data, n = 5)
+
+```
+
+`summary()` can be used to produce summaries of a data object. When it is applied to a **data frame**, this function is essentially applied to each column, and the results for all columns are shown together.  
+
+For a continuous (numeric) variable like **balance** and **income**, this function returns 5 **descriptive statistics** for it:
+
+* minimum
+* 1st quartile
+* median
+* 3rd quartile
+* maximum.  
+
+If there are any missing values (denoted by `NA`), it would also provide a count for them.  In this example, there are no missing values, so there is no display for the number of `NA`'s. 
+
+
+```{r,eval=FALSE}
+summary(default_data)
+default_data$balance
+default_data[["balance"]]
+typeof(default_data["balance"])
+typeof(default_data[["balance"]])
+typeof(default_data[,"balance"])
+```
+
+For a categorical variable, R didn't stored them as a factor, we need to change it to factor which returns the levels and the number of cases in each level. 
+
+There are two way we can change it to factor
+```{r factor, eval=FALSE}
+is.factor(default_data$default)
+default_data$default<-factor(default_data$default)
+summary(default_data)
+```
+```{r factorbydefault}
+default_data<-read.table("Default.csv", header = TRUE, sep = ",", stringsAsFactors = T) 
+summary(default_data)
+```
+
+### Table
+We can create a table from the data by using table() 
+```{r table, eval=FALSE}
+table(default_data$student)
+```
+Provide the code to cross-tabulate **default** and **student** to see how defaults vary between students and non-students.
+
+### Task3
+```{r task3}
+table(default_data$default,default_data$student, dnn=c("default","student"))
+
+```
+
+### Level
+The assignment form of the `levels()` function can be used to change the labels of a factor. Provide the code that converts **default** to take logical values, with `No` mapped to `FALSE` and `Yes` to `TRUE`. 
+
+### Task 4
+```{r task4}
+levels(default_data[["default"]]) <- c(F, T) #mapped to logical values
+head(default_data)
+```
+
+
+## Subsetting and Querying the Data Frame
+As mention in the previous part, we can get all value in the column from the data frame by using different method such as "$" or "[[]]".
+However, sometimes we dont need entire column, we just need some row,
+what we can do is to use "[row, column]" 
+```{r subsetting, eval=FALSE}
+default_data$default
+default_data[["default"]]
+default_data[1,1] #return the value in row1,column1
+default_data[1,"default"] # you can also use name
+default_data[1,] #return entire row if you do not specify which column
+default_data[default_data$income>30000,] #return only the row which the income higher than 30000
+
+```
+We can produce two pairs of boxplots to graphically depict how numeric values of **balance** and **income** differ between non-defaulters and defaulters through their quartiles.
+
+```{r boxplot, message=FALSE, echo=FALSE}
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1), oma = c(0, 0, 2, 0))
+with(default_data,{
+  boxplot(balance ~ default , xlab = "Default", ylab = "Balance", col=c("steelblue1","salmon1"))
+  boxplot(income ~ default , xlab = "Default", ylab = "Income",   col=c("steelblue1","salmon1"))
+  })
+```
+
+
+Provide your code to calculate the medians corresponding to the four boxes (Hint: `median()`)
+
+
+### Task 5
+```{r task5}
+median(default_data[default_data$default==F, c(3)])
+median(default_data[default_data$default==T, c(3)])
+median(default_data[default_data$default==F, c(4)])
+median(default_data[default_data$default==T, c(4)])
+```
+
+

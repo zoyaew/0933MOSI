@@ -1,0 +1,99 @@
+---
+title: "Lab 10: Web Scraping"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, tidy = TRUE)
+```
+
+Before proceeding to the exercise, make sure the `tidyverse` is installed in your lab computer.
+
+```{r}
+library(tidyverse)
+library(rvest)
+```
+
+In today's lab, we are going to use the functions provided by the `rvest` package to scrape data available on a Amazon product web page. 
+
+
+We start with a [seed page](https://www.amazon.com/dp/B071X9KT1D/), and find the product pages to be scraped sequentially by looking at items displayed in the 1st "Customers who bought this item also bought" carousel. Each product item in this carousel are structured as an HTML list item node delineated by the <li> tag with `class=".a-carousel-card.aok-float-left"`.
+
+The following commands download the source code, and extract these list item nodes for use.
+
+
+```{r}
+webpage <- read_html("https://www.amazon.com/dp/B071X9KT1D/")
+
+(results <- html_nodes(webpage, ".a-carousel-card.aok-float-left") %>% .[1:6]) # subset the items from the 1st carousel
+
+# If there are not enough items in this carousel, you will see:
+# Error in nodes_duplicated(nodes) : Expecting an external pointer: [type=NULL].
+
+
+results[2] %>% toString() %>% writeLines() # print the HTML source code of the 1st item for inspection
+```
+
+Note that the title of the corresponding book (i.e., *Regression Modeling with Actuarial and Financial Applications (International Series on Actuarial Science)*) can be spotted at several places in the above code; for example, the `alt` attribute of a `<img>` tag, the text (truncated) enclosed by a pair of <div> tags of both the `p13n-sc-truncate` class and `p13n-sc-line-clamp-3` classe, etc.
+
+Let's inspect the code passage below closely:
+
+```{html eval=F}
+<div class="p13n-sc-truncate p13n-sc-line-clamp-3 p13n-sc-truncate-desktop-type2" aria-hidden="true" data-rows="3">
+            Discovering Statistics Using R
+        </div>
+```
+
+Note that `p13n-sc-truncate p13n-sc-line-clamp-3 p13n-sc-truncate-desktop-type2"` contains a space in the value part. We know that a space, when used to construct a css selector, means selecting the second node/element inside the first node/element, as the second node/element is the child of the first node/element in the document's hirerarchy.
+
+Here, the space means a different thing. When spaces are used in the class value, it means the element belongs to  `p13n-sc-truncate` class, `p13n-sc-truncate-desktop-type2` class and the `p13n-sc-line-clamp-3` class. Therefore, we can tell the program to identify this element with either one. Or if we want to match only elements that are of both classes (so as to skip those elements belonging to either class), using `".p13n-sc-truncate.p13n-sc-line-clamp-3.p13n-sc-truncate-desktop-type2"` without space as the selector. So we can extract the (truncated) titles of all the 6 books by running the following
+
+```{r}
+(titles <- results%>%html_node(".p13n-sc-truncate.p13n-sc-line-clamp-3.p13n-sc-truncate-desktop-type2") %>% html_text(trim = TRUE))
+```
+
+Provide the code to extract authors, ratings, and prices for the 6 books and convert them from string form to appropriate types.  Please note that for the authors, some of them are links and some of them are plain text. The classes in the webpage are different. `ratings`, it is confirmed that the format is in `X.X out of 5 stars`, e.g. `3.0 out of 5 stars`. You are going to use `str_sub()` to get the value `X.X`.
+
+### Task1
+```{r task1, echo=F}
+# edit here
+
+(authors <- results %>% html_node(".a-row.a-size-small") %>% html_text(trim=T))
+(ratings <- results %>% html_node(".a-icon-alt") %>% html_text(trim=T) %>% str_sub(1,3) %>% as.numeric())
+(prices <- results %>% html_node(".p13n-sc-price") %>% html_text(trim=T))
+
+```
+ 
+
+The URLs of the product webpages for the 6 books can be extracted by using `html_attr()`. Provide your code below:
+
+### Task2
+```{r task2, echo=F}
+(urls <- results %>% html_node(".a-link-normal") %>% html_attr("href"))
+
+```
+
+Comparing these urls with the url of the seed page (<https://www.amazon.com/dp/B071X9KT1D/>) reveals that the raw are relative ones. Besides, some part of them are used for the purpose other than locating the product webpages (e.g., tracking referring sources). We want to remove the irrelevant part and use the remaining (the part contained in the value part of the substring `"/dp/B00H7WPACC/"`) to form absolute urls for later use. Name your result `complete_urls`
+
+
+### Task3
+```{r task3, echo=F}
+(complete_urls <- urls %>% str_extract("/dp/.*/ref") %>% str_sub(1,-4) %>% str_c("https://www.amazon.com", .))
+
+```
+
+
+
+Now we are going to scrape reviews for these books by visiting their webpages. Provide your code below to extract the textual reviews displayed initially for the *1st book* (no need to use the selenium server to load all reviews)
+
+
+### Task4
+```{r task4, echo=F}
+# edit here
+(reviews <- read_html(complete_urls[1]) %>% html_nodes(".a-expander-content.reviewText.review-text-content.a-expander-partial-collapse-content") %>% html_text(trim=T))
+
+
+```
+
+

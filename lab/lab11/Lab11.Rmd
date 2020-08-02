@@ -1,0 +1,117 @@
+---
+title: "Lab11"
+author: "zewahyu"
+output:
+  html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+library(tidyverse)
+if (!require(ggplot2)) install.packages("ggplot2")
+library(ggplot2)
+if (!require(ggthemes)) install.packages("ggthemes")
+library(ggthemes)
+if (!require(lubridate)) install.packages("lubridate")
+library(lubridate)
+```
+
+ 
+### How Often Did Trump Mention His Competitors in the 2016 Presidential Campaign? 
+
+We are going to reproduce the graph shown in expected result. In order to reproduce this graph, we need to analyse the text of Trump's tweets to identify candidates having been mentioned. A candidate is considered having been mentioned if her/his last name, first name, full name appeared in the tweet. We restrict our analysis to the following candidates: Jeb Bush, Hillary Clinton, Ted Cruz, and Marco Rubio, and to the period from  Oct. 1st, 2015 to Jul. 30th, 2016.
+
+Use appropriate string operations in `stringr` together with **regular expressions** to analyze the text of tweets.
+
+
+The result should be an R data frame having 4 columns as follows:
+
+ - `Tweet`: ids of a tweet;
+ - `Date`: the date the message got tweeted;
+ - `Candidate`: the candidate's capitalised last name if s/he was mentioned in the tweet. (`toupper()` can be used).
+ 
+
+After getting the Count for each candidate on each day, you need to add a `complete()`
+in order to fill zero count to those days that Trump did not mention the candidate, and `bind_rows()` to add the "starting" and "ending" points of the graph to zero.
+``` {r eval=F}
+%>% complete(Date = seq(ymd("2015-10-1"), ymd("2016-7-30"), by = "day"), Candidate, fill = list(Count = 0)) %>%
+  bind_rows(tibble(Date = ymd("2016-8-1"), Candidate = c("CRUZ", "BUSH", "CLINTON", "RUBIO"), Count = 0)) %>%
+  bind_rows(tibble(Date = ymd("2015-9-29"), Candidate = c("CRUZ", "BUSH", "CLINTON", "RUBIO"), Count = 0)) %>%
+```
+
+
+
+TASK1: hint: using str_extract
+```{r task1, echo=F}
+trump.tweets <- read_csv(file = "trump_data.csv")
+#Edit your code
+trump.tweets.plot <- trump.tweets %>% mutate(Date=as_date(Date)) %>% filter(Date>="2015-10-01" & Date<="2016-07-30") %>% mutate(Candidate=str_extract_all(Text,regex("Jeb Bush|Jeb|Bush|Hillary Clinton|Hillary|Clinton|Ted Cruz|Ted|Cruz|Marco Rubio|Marco|Rubio", ignore_case = T))) %>% unnest(Candidate) %>%
+  mutate(Candidate=toupper(Candidate)) %>% mutate(Candidate=case_when(
+    Candidate=="HILLARY CLINTON"~"CLINTON",
+    Candidate=="HILLARY"~"CLINTON",
+    Candidate=="MARCO RUBIO"~"RUBIO",
+    Candidate=="MARCO"~"RUBIO",
+    Candidate=="JEB BUSH"~"BUSH",
+    Candidate=="JEB"~"BUSH",
+    Candidate=="TED CRUZ"~"CRUZ",
+    Candidate=="TED"~"CRUZ",
+    TRUE ~ Candidate)) %>% filter(!duplicated(.[,c("Text", "Candidate")])) %>% group_by(Candidate, Date) %>% summarise(Count=n()) %>% ungroup()
+
+```
+After adding the complete code, the result will be the below.
+
+
+```{r , echo=F}
+
+trump.tweets.plot<-trump.tweets.plot %>%
+  complete(Date = seq(ymd("2015-10-1"), ymd("2016-7-30"), by = "day"),
+           Candidate, fill = list(Count = 0)) %>%
+  bind_rows(tibble(Date = ymd("2016-8-1"), Candidate = c("CRUZ", "BUSH", "CLINTON", "RUBIO"), Count = 0)) %>%
+  bind_rows(tibble(Date = ymd("2015-9-29"), Candidate = c("CRUZ", "BUSH", "CLINTON", "RUBIO"), Count = 0)) %>%
+  arrange(Date, Candidate)
+trump.tweets.plot <- trump.tweets.plot[!is.na(trump.tweets.plot$Candidate),]
+trump.tweets.plot
+```
+
+
+TASK2:
+```{r task2, echo=F}
+# Edit code here
+
+# Create a tibble `trump.tweets.label` containing the Candidate, Date, and (max) count of each candidate.
+
+trump.tweets.label <- trump.tweets.plot %>% group_by(Candidate) %>% filter(Count >= max(Count))
+
+# this result is used to put the candidate's name as a label on the graph to indicate the peak of each candidate.
+# expected result:
+#2015-10-18	BUSH	14		
+#2016-02-22	CRUZ	16		
+#2016-02-28	RUBIO	13		
+#2016-07-29	CLINTON	13	
+trump.tweets.label
+
+
+# Plot the graph:
+# you can set the transparency = 0.4
+
+trump.tweets.plot %>%
+  ggplot(aes(x = Date, y = Count, fill = Candidate, colour = Candidate))  +
+  geom_polygon(alpha = 0.4) +
+  geom_segment(x = ymd("2016-2-1"), xend = ymd("2016-2-1"), y = 0, yend = 14.6, linetype = 2, colour = "gray")  +
+  geom_segment(x = ymd("2016-3-15"), xend = ymd("2016-3-15"), y = 0, yend = 15.2, linetype = 2, colour = "gray") +
+  geom_segment(x = ymd("2016-05-14"), xend = ymd("2016-05-14"), y = 0, yend = 14.6, linetype = 2, colour = "gray") +
+  geom_label(data = trump.tweets.label, mapping = aes(x = Date, y = Count, label = Candidate) , fill = NA, size = 3.7) +
+  theme_economist() +
+  theme(legend.position = "none") +
+  ggtitle("The 2016 Campaign in Donald Trump's Tweets", subtitle = "Number of times a candidate was mentioned in \n@realDonaldTrump tweets") +
+  scale_y_continuous(NULL, breaks = seq(0, 14, 2), limits = c(0,16.4)) +
+  labs(x = NULL, y = NULL, fill =NULL, colour = NULL) +
+  scale_fill_brewer(palette = "Spectral") +
+  scale_colour_brewer(palette = "Spectral") + scale_x_date(date_breaks = "1 month", date_labels = "%b %y") +  
+ annotate("text", x = ymd(c("2016-2-1", "2016-3-15", "2016-05-14")), y = c(15.5, 16.2, 16.1),
+             label = c("FEB. 1\nIowa Caucuses", "MAR. 15\nFlorida Primary", "MAY 14\nTrump Becomes\nPresumptive Nominee"), size = 3, colour="gray30", hjust = 0)
+
+
+```
+

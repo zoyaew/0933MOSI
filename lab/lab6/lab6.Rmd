@@ -1,0 +1,146 @@
+---
+title: "Practicing Advanced Looping and the Split-Apply-Combine Manipulation"
+author: "zewahyu"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+
+
+### Part 2: Calculating the Ratio of the Government's Debt to the GDP
+
+Gross domestic product (GDP) is a measure of the total market value of all goods and services produced in a given country in a given year.
+
+An important claim in economics is that the rate of GDP growth is closely related to the level of government debt, specifically with the ratio of the government's debt to the GDP.  The file `debt.csv` on Canvas contains measurements of GDP growth and of the debt-to-GDP ratio for twenty countries around the world, from the 1940s to 2010.  Note that not every country has data for the same years, and some years in the middle of the period are missing data for some countries but not others.
+
+Load the data into a dtaframe called `debt`.  
+
+```{r}
+## use setwd() set the working directory to the folder to which the data file is downloaded
+#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab6")
+debt<-read.table("debt.csv",sep = ",", header = T)
+head(debt)
+```
+
+We should have 1171 rows and 4 columns. And there are no missing values in all columns.
+
+```{r}
+dim(debt)
+lapply(debt, function (x) length(x[is.na(x)]))
+
+
+```
+
+2.1 Use `split` and `sapply` to calculate the average GDP growth rate for each country (averaging over years).  (The average growth rates for Australia and the Netherlands should be $3.72$ and $3.03$.)  Present a table of the twenty growth rates.
+
+```{r task2.1, echo=FALSE}
+Growth<- split(debt$growth,debt$Country)
+sapply(Growth,mean)
+
+```
+
+2.2 Use `tapply` to calculate the average GDP growth rate for each year (averaging over countries)  (The average growth rates for 1972 and 1989 should be $5.63$ and $3.19$, respectively.)   
+
+```{r task2.2, echo=FALSE}
+##edit here
+tapply(debt$growth, debt$Year, mean)
+
+
+```
+
+2.3 The function `cor(x,y)` calculates the correlation coefficient between two vectors x and y. The command below gives us the correlation coefficient between GDP growth and the debt ratio over the whole data set (all countries, all years). 
+
+```{r task2.3, echo=FALSE}
+##edit here
+cor(debt$growth, debt$ratio)
+```
+
+2.4 Calculate the correlation coefficient separately for each country. The mean of these correlations should be -0.1778.
+** For this task, you are required to use `Vectorize()` to create a `vectorized_cor` for the calculation.
+
+
+```{r task2.4, echo=FALSE}
+##edit here
+vectorized_cor <- Vectorize(cor, c("x","y"))
+ratiobyC<-split(debt$ratio, debt$Country)
+growthbyC<-split(debt$growth, debt$Country)
+vectorized_cor(ratiobyC, growthbyC)
+```
+ 
+2.5 Calculate the correlation coefficient separately for each year. The mean of these correlations should be -0.1906.
+** For this task, you are required to use `mapply()`.
+
+```{r task2.5, echo=FALSE}
+##edit here
+ratiobyY<-split(debt$ratio, debt$Year)
+growthbyY<-split(debt$growth, debt$Year)
+mapply(cor, ratiobyY, growthbyY)
+```
+
+
+### Part 3: Analyzing Networked Data
+
+In many Internet applications, we may need to interact with the networked data. The file `ckm_network_small.csv` on Canvas contains a binary matrix, recording which persons
+knew each other in a social network; the entry in row i, column j is 1 if person i said that person j was a friend or close professional contact, and 0 otherwise. 
+
+Load the file into R as `ckm_network`. It gives us a square matrix which contains only 0s and 1s, and that it has 125 rows and columns.
+
+```{r}
+#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab6")
+ckm_network<-read.table("ckm_network_small.csv",sep=",", header = F)
+dim(ckm_network)
+```
+
+3.1 Use `apply()` to create a vector which stores the number of contacts each person has. Do not use a loop. Check that person 41 had 3 contacts.
+
+```{r task3.1, echo=FALSE}
+##edit here
+answer <- apply(ckm_network, 1, sum)
+
+#answer[41]   <----- the result is 3
+answer[41]
+```
+
+One common use of networked data is to study "viral marketing": how a product spreads among persons in a social network. In order to do so, we need another dataset decribing indivudal persons and their adoption dates of the product so as to allow us to figure out the order of adoptions. The file `ckm_nodes_small.csv` has information about each individual in the social network.
+
+```{r}
+#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab6")
+ckm_nodes<-read.table("ckm_nodes_small.csv", sep=",", header = T)
+dim(ckm_nodes)
+head(ckm_nodes)
+```
+
+`adoption_date` records the month in which the person adopted the product, counting from
+a fixed date. If the person did not adopt the product by the end of the data collection, this is recorded as `Inf`.
+
+3.2 Counting Peer Pressure: create a Boolean vector which indicates, for each person, whether they were contacts of person 37, and had adopted the product by month 5. Count the number of such doctors
+without converting the Boolean vector to a vector of indices. There should be 3 such doctors.
+
+** You need to create a function to filter the required rows.
+
+```{r task3.2, echo=FALSE}
+boolean_list<-ckm_nodes[,"adoption_date"]<=5 & ckm_network[,"V37"]
+sum(boolean_list)
+##edit here
+
+#f<-function(x,y){
+#  if(x<=5 & y==1){
+#    return(TRUE)
+#  }
+#  else{
+#    return(FALSE)
+#  }
+#}
+#adoption_date<-ckm_nodes[,"adoption_date"]
+#network37<-ckm_network[,"V37"]
+
+#sum(mapply(f,network37,adoption_date)) after running this line, it should return 3
+sum(mapply(f,network37,adoption_date))
+```
+  
+

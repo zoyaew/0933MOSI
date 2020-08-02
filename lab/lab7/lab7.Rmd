@@ -1,0 +1,103 @@
+---
+title: "Lab 7: Data Wrangling"
+author: "zewahyu"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE, message = F)
+
+```
+
+Before proceeding to the next exercise, make sure the `tidyverse` collection is installed in your lab computer.
+
+```{r results='hide', message=FALSE, warning=FALSE}
+library(tidyr)
+library(tidyverse)
+
+```
+
+# pivot_longer and pivot_wider
+```{r }
+rating<-read_csv("MovieRating.csv")
+rating
+```
+This data is the rating of the movie from two different platform.
+
+## Task 1
+1.1 Using pivot_longer to make the data longer by combining two rating to one column, named the new tibble rating_L.
+```{r task 1.1, echo=FALSE}
+rating_L <- pivot_longer(rating, cols=c("IMDb Rating", "MovieLens Rating"), names_to="Platform", values_to="Rating")
+rating_L
+```
+1.2 Using separate() to get the Year of the Movie Released.
+```{r task 1.2, echo=FALSE}
+rating_Y <- separate(rating_L, col="Release Date", into=c("Day","Month","Year"), sep="/")
+rating_Y
+```
+
+
+
+Sociological studies of the diffusion of innovations focus on identifying "early adopters" and examine how innovations "spread"" from them to others. In this lab, we will look at a dataset that tracks how an antibiotic named tetracycline spread among doctors in Illionis in the 50s. The <span style="color:blue">ckm_nodes.csv</span> file contains information about each individual doctor. 
+
+Load the dataset to create a tibble named <span style="color:blue">ckm_nodes</span> using `read_csv()` from the `readr` package:
+
+```{r}
+ckm_nodes<-read_csv("ckm_nodes.csv",col_names = TRUE)
+ckm_nodes
+```
+
+Check that it has 246 rows and 13 columns.
+
+```{r}
+dim(ckm_nodes)
+```
+
+<span style="color:blue">adoption_date</span> records the month in which the doctor began prescribing the antibiotic counting from a fixed point in time. If the doctor did not begin prescribing it by month 17, this is recorded as `Inf`. If it's not known when or if a doctor adopted the then-new antibiotic, the value is `NA`.
+
+a. How many doctors began prescribing the antibiotic in each month of the study? How many never prescribed? How many are `NA`s? Hint: `table()` in base R or `group_by()`, `summarise()` and `n()` in the `dplyr` package.
+
+```{r task2, echo=FALSE}
+# Edit your code here
+# **use dplyr package
+table(ckm_nodes$adoption_date, useNA = "ifany")
+
+ckm_nodes %>% group_by(adoption_date) %>% summarise(n())
+```
+
+b. Subset doctors for whom <span style="color:blue">adoption_date</span> is not `NA`. Re-assign this subset to <span style="color:blue">ckm_nodes</span> so it only contains those rows. Check that this vector has length 125. Use this cleaned version of `ckm_nodes` for the rest of the exercise. Hint: `filter()` in `dplyr`.
+
+```{r task3, echo=FALSE}
+# Edit your code here
+ckm_nodes %>% filter(!is.na(adoption_date)) -> data
+
+
+```
+
+c. Create plots of the number of doctors who began prescribing tetracycline each month versus time. (It is OK for the numbers on the horizontal axis to just be integers rather than formatted dates.) 
+
+```{r task4, echo=FALSE}
+# Edit your code here
+adoptions_per_month <- data %>% group_by(.,adoption_date) %>% summarise("no_of_adopters"=n())
+adoptions_per_month
+
+with(adoptions_per_month, plot(adoption_date, no_of_adopters, xaxt = "n", type = "l", 
+    lty = 1))
+with(adoptions_per_month, axis(side = 1, at = adoption_date, labels = T))
+
+```
+
+d. Produce a plot of the total number of adopters in each month. The curve for total adoptions should first rise rapidly and then level out around month 6. Hint: `mutate()` and `cumsum()`.
+
+```{r task5, echo=FALSE}
+# Edit your code here
+adoptions_per_month <- adoptions_per_month %>% mutate("cumsum"=cumsum(no_of_adopters))
+
+with(adoptions_per_month, plot(adoption_date, cumsum, xaxt = "n", type = "l", lty = 1))
+with(adoptions_per_month, axis(side = 1, at = adoption_date, labels = T))
+
+
+```
+

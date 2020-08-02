@@ -1,0 +1,58 @@
+---
+title: "Lab8"
+author: "zewahyu"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Today we will work on the S&P500 index data in the past two years. We will apply what we have learnt including function and data wrangling.
+
+```{r}
+SP500<-read_csv("SP500.csv")
+```
+
+You can see we have 7 columns in our dataset, what we need are Date and Adj Close.
+
+# Task 1- SMA
+
+Create a function called sma with two parameter data and day. Caculate the moving average of the data according to the day. For example, sma(SP500$`Adj Close`,50) will return a vector which is the 50-days moving average of Adj Close. Return NA in the vector if the data is not enough (e.g. You cannot calculate the 50day average for the first 49 row). Create a new data set which only has 4 columns: Date, Adj Close, SMA50,
+SMA200 and remove all the row which include NA.
+
+```{r}
+sma <- function(data, day){
+  result<-vector("numeric", length = length(data))
+  for(i in seq_along(data)){
+    if(i<day){
+      result[i]<-NA
+    }
+    else{
+      result[i]<-mean(data[(i-day+1):i])
+    }
+  }
+  return(result)
+}
+
+data<-SP500 %>% mutate(SMA50=sma(SP500$`Adj Close`, 50), SMA200=sma(SP500$`Adj Close`, 200)) %>% select(c(Date, `Adj Close`, SMA50, SMA200)) %>% filter(!is.na(SMA50) & !is.na(SMA200))
+data
+```
+# Task 2- Cross
+
+The death cross is the intersection point of 50-day SMA and 200-day SMA that the 50-day SMA was previously higher than the 200-day SMA but now becomes lower.
+
+The golden cross is the intersection point of 50-day SMA and 200-day SMA that the 50-day SMA was previously lower than the 200-day SMA but now becomes higher.
+
+Create a new column called Cross in the dataset, assign "Golden" if it is golden cross, assign "Death" if is is death cross and assign "NA" if it is not a intersection point.
+Hint: lag(), ifelse()
+
+There should be one Death Cross and one Golden Cross
+```{r}
+data <- data %>% mutate(pSMA50=lag(SMA50), pSMA200=lag(SMA200))
+data <- data %>% mutate("Cross"=ifelse(pSMA200>pSMA50 & SMA200<SMA50, "Golden", ifelse(pSMA200<pSMA50 & SMA200>SMA50,"Death", NA))) %>% select(c(Date,`Adj Close`, SMA50, SMA200, Cross))
+data
+
+```
+

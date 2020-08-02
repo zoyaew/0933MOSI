@@ -1,0 +1,152 @@
+---
+title: "Writing and Calling Functions"
+Author: "zewahyu"
+output:
+  html_document:
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE)
+
+```
+
+A dataset often includes one or more categorical variables that delineate groups of records. In many circumstances, we are interesed in knowing descriptive statistics of variables by group. In today's lab, we are going to create our own R functions to calculate group statistics, a type of tasks fairly common in data analysis. 
+
+The example dataset we use is a small subset of hourly data on rental activities for a bike sharing system, with the corresponding weather information. Specifically, it has the following fields:
+
+- `dteday` : date
+- `mnth` : month (9 to 12)
+- `hr`: hour (0 to 23)
+- `holiday` : weather day is holiday or not
+- `weekday` : day of the week
+- `workingday` : if day is neither weekend nor holiday is 1, otherwise is 0.
++ `weathersit` : different weather situations coded into four categories:
+    1. Clear, Few clouds, Partly cloudy, Partly cloudy
+    2. Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+    3. Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+    4. Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+- `temp` : Normalized temperature in Celsius. The values are derived via $\frac{t-t_{min}}{t_{max}-t_{min}}$.
+- `atemp`: Normalized feeling temperature in Celsius. The values are derived via $\frac{t-t_{min}}{t_{max}-t_{min}}$.
+- `casual`: count of casual users
+- `registered`: count of registered users
+
+
+Download the data from the Web, display the first several records, and use `str()` and `summary()` to show its structure and summary information. 
+
+
+```{r}
+bike_rental <- read.table("bike_hour_season4.csv", header=T, sep=",", stringsAsFactors = T)
+head(bike_rental, 15)
+str(bike_rental)
+summary(bike_rental)
+```
+
+Although values of several fields are stored as integer vectors in R, they actually represents categorical variables (e.g., `mnth`, `holiday`, `weathersit`, etc.). R provides the notion of factors to facilitate the processing of categorical variables. So it's better to first convert the integer vectors that represent categorical varialbes into factors. Please provide your code below to perform such conversion for the `weathersit` field:
+
+```{r}
+bike_rental$weathersit<-as.factor(bike_rental$weathersit)
+```
+
+Next, we are going to group the counts of renatals made by registered users based on weather situation.
+
+Let's retrieve the information for one group at a time. First, let's retrieve values of `registered` for hours when the weather is light Snow, light Rain, thunderstorm, etc. (weather code: 3):
+
+```{r}
+bike_rental[bike_rental$weathersit=="3", "registered"]
+```
+
+To finalize the grouping, we need to repeat the subsetting operation three times, as the grouping varialbe `weathersit` takes on three distinct values. 
+
+Create a list to store the result of this grouping. Specifically, each component of the list contains the values of the `registered` field in one of the three weather situations: 
+
+```{r}
+weather <- levels(bike_rental$weathersit)
+weather_by_group <- vector("list", length = length(weather))
+
+for(i in seq_along(weather_by_group)){
+  weather_by_group[[i]] <- bike_rental[bike_rental$weathersit==weather[i], "registered"]
+}
+```
+
+
+Based on the grouped data, we may want to calculate some basic statistics to see how the hourly count of rentals varies according to the weather situation. Suppose that we want to calculate the mean of the counts per group and the result is stored as a vector with named elements. Provide your code below:
+
+```{r}
+mean_by_group <- vector("numeric", length = length(weather_by_group))
+for(i in seq_along(weather_by_group)){
+  mean_by_group[i] <- mean(weather_by_group[[i]])
+}
+names(mean_by_group) <- weather
+mean_by_group
+
+```
+
+###Task1
+
+As noticed in the beginning, calculating statistics for gouped data is such a common task and we may want to write a function to automate it under different conditions. For example, with the same data, we may also want to calculate the mean of rentals made by casual users per month. The first attempt to generalize and automate this is to write a function that allows the dataset, the grouping variable, and the variable for which mean is calculated to vary across different executions.  
+ 
+```{r task1}
+#group_mean <- function (data, x, y) {
+# x is used to specify the variable whose values are going to be grouped, and y is used to specify the grouping variable
+#}
+group_mean <- function (data, x, y) {
+  group <- vector("list", length = length(levels(as.factor(data[,y]))))
+  for(i in seq_along(group)){
+    group[[i]] <- data[as.factor(data[,y])==levels(as.factor(data[,y]))[i], x]
+  }
+  mean_group <- vector("numeric", length = length(group))
+  for(i in seq_along(mean_group)){
+    mean_group[i] <- mean(group[[i]])
+  }
+  names(mean_group) <- levels(as.factor(data[,y]))
+  mean_group
+}
+group_mean(bike_rental,"registered", "weekday")
+
+```
+
+To enable this function to calculate a variety of statistics for grouped data, we can further include a parameter `f` to take a function as its argument:
+
+```{r task2}
+#Code
+group_stat <- function (data, x, y, f) {
+  group <- vector("list", length = length(levels(as.factor(data[,y]))))
+  for(i in seq_along(group)){
+    group[[i]] <- data[as.factor(data[,y])==levels(as.factor(data[,y]))[i], x]
+  }
+  mean_group <- vector("numeric", length = length(group))
+  for(i in seq_along(mean_group)){
+    mean_group[i] <- f(group[[i]])
+  }
+  names(mean_group) <- levels(as.factor(data[,y]))
+  mean_group
+}
+group_stat(bike_rental, "registered", "weekday", sum)
+
+```
+
+We can make this function even more versatile. For example, when the arguments to a function call doesn't specify the grouping variable, the function simply returns a global statistic for the variable passed to `x`. Revise the above function to accommodate such use.
+
+```{r task3}
+#Code
+stat <- function (data, x, y=NULL, f) {
+  if(is.null(y)){
+    f(data[[x]])
+  }
+  else{
+    group <- vector("list", length = length(levels(as.factor(data[,y]))))
+    for(i in seq_along(group)){
+      group[[i]] <- data[as.factor(data[,y])==levels(as.factor(data[,y]))[i], x]
+    }
+    mean_group <- vector("numeric", length = length(group))
+    for(i in seq_along(mean_group)){
+      mean_group[i] <- f(group[[i]])
+    }
+    names(mean_group) <- levels(as.factor(data[,y]))
+    mean_group
+  }
+}
+stat(bike_rental, "registered", f = sum)
+```
+

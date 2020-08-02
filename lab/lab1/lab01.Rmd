@@ -1,0 +1,182 @@
+---
+#YAML Header
+title: "Lab 1"
+author: "zewahyu"
+date: ""
+output: html_document
+---
+
+##### R Markdown Cheatsheet:
+[Cheatsheet URL](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf)
+
+### 1. Changing the author field and file name.
+
+* (a) Change the `author:` field on the Rmd document to your own name + Studend ID.
+
+* (b) Rename this file to "lab01_SID.Rmd", where SID is changed to your own Student ID.
+
+### 2. Markdown
+
+# Task1
+
+Refers to the Markdown Cheatsheet, create a small table with 2 columns: "Course Code" and "Course Title".
+And 2 rows:
+"ISOM3390" - "Business Programming in R"
+"ISOM3210" -  "Information Systems Analysis and Design"
+
+The course codes are in italics.
+
+## Answer for Task1
+Course Code | Course Title
+------------|------------
+*ISOM3390* | Business Programming in R
+*ISOM3210* | Information Systems Analysis and Design
+
+
+
+## End of Task1
+
+
+### 3. Assigning Variables
+Create and assign values "A", "b", 3 to variable a, b, c with 3 different assignment operators respectively.
+
+# Task2
+```{r Task2}
+(a = "A")
+(b <- "b")
+(3 -> c)
+```
+
+
+### 4.  Creating sequences
+We just learned about the `c()` operator, which forms a vector from its arguments.  If we're trying to build a vector containing a sequence of numbers, there are several useful functions at our disposal.  These are the colon operator `:` and the sequence function `seq()`.
+
+##### `:` Colon operator: 
+```{r colon operator}
+1:10 # Numbers 1 to 10
+127:132 # Numbers 127 to 132
+1000:1 # Numbers 1000 to 1
+```
+
+##### `seq` function: `seq(from, to, by)`
+```{r seq function}
+seq(1,10,1) # Numbers 1 to 10
+seq(1,10,2) # Odd numbers from 1 to 10
+seq(2,10,2) # Even numbers from 2 to 10
+```
+
+```{r example}
+(x <- c(11, 12, 13, 14, 15, 16))
+(x1 <- 11:16)
+(length(x)) # number of elements in x
+(length(x1))
+```
+Question yourself: 
+What is the difference between x and x1?
+
+Can we get the same result as seq(2,10,2) by using colon?
+
+
+
+### 5. Indexing of Vectors (Positive, Negative) 
+From part 4: we can select part of the elements in the vector 'x' with a vector of index using '[]'. e.g.:
+```{r vector index}
+x[2:4]
+x[c(2,4,6)]
+x[-4:-5] # expect 4 to 5; negative means NOT select
+x[6:1]
+```
+
+### 6 Names of Vectors 
+
+``` {r vector name}
+attributes(x)
+names(x)
+```
+
+```{r}
+names(x) = c("one", "two", "three", "four")
+names(x)
+attributes(x)
+```
+```{r}
+
+names(x) = c("one", "two", "three", "four", "one", "two")
+names(x)
+names(x[6])
+
+```
+What if there are two elemet with the same name?
+```{r}
+x["one"]
+```
+
+
+### 7. Vectorized Characteristics
+
+x = c(1, 2, 3, 4, 5)
+y = c(5, 4, 3, 2, 1)
+x + y => c( 1 + 5, 2 + 4, 3 + 3, 4 + 2, 5 + 1)
+
+what if the length of two vector are not the same?
+```{r}
+a<- 1:5
+b<- 3:5
+a+b
+```
+
+
+
+Task3: 
+Create two variable a and b, assign value 1 to a, 100 to b.
+Create a vector contain numbers from a to b, name the vector 'k'. Calculate k plus the reverse order of k.
+
+Restrictions:
+- You are not allow to use the function `rev()`.
+- Please use a way that related to indexing.
+
+Tips: For indexing, index 1 always means the first element, but we do not have a number to represent the last number. In this task, you are not allow to use the index 100 to represent the last item. When grading your task, I will use other number instead of 1 and 100 e.g. 30 and 55.
+
+i.e.
+k + reverse k:
+1 + 100
+2 + 99
+3 + 98
+...
+...
+99 + 2
+100 + 1
+
+Output: (length of the output is 100)
+101
+101
+...
+...
+101
+
+p.s DO NOT calculate manually. This is a programming course. 
+
+``` {r}
+# example answer for using rev():
+a<-1
+b<-100
+k<- a:b
+k + rev(k)
+```
+
+# Task 3
+```{r Task3}
+# Your code here
+a<-1
+b<-100
+k<- a:b
+k+(b:a)
+```
+
+
+## Submission:
+When you finish the 3 tasks, click the "Knit" button to generate the html document. Submit the html file as your lab submission.
+
+!!! Remember to edit the 'author' information in YAML Header of this Rmd file. If I see "Josh Man" there, I may consider that this is NOT your work. :)
+
+

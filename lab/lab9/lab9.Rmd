@@ -1,0 +1,207 @@
+---
+title: "lab7_basic plot"
+author: "zewahyu"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Basic Multipanel Layouts with `par()`
+
+```{r}
+par(mfrow = c(2, 3), cex = 0.6, mar = c(3, 3, 0, 0), oma = c(1, 1, 3, 1))
+for (i in 1:6) {
+  plot(1, 1, type = "n")
+  mtext(letters[i], side = 3, line = -1, adj = 0.1,cex = 0.6)
+}
+```
+
+## Some of the Common "Tricks"
+
+We can eliminate the redundant axes, remove margin space, and reduce the emphasis
+on the structural (non-data) elements of the figure. 
+
+
+
+```{r eval=FALSE}
+par(mfrow = c(2, 3), cex = 0.6, mar = c(0, 0, 0, 0), oma = c(4, 4, 0.5, 0.5),tcl = -0.25, mgp = c(2, 0.6, 0))
+for (i in 1:6) {
+  plot(1, axes = FALSE, type = "n")
+  mtext(letters[i], side = 3, line = -1, adj = 0.1, cex = 0.6)
+  if (i %in% c(4, 5, 6)) axis(1, col = "grey40", col.axis = "grey20", at = seq(0.6, 1.2, 0.2))
+  if (i %in% c(1, 4)) axis(2, col = "grey40", col.axis = "grey20", at = seq(0.6, 1.2, 0.2))
+  box(col = "grey60")
+}
+
+mtext("x axis", side = 1, outer = TRUE, cex = 0.7, line = 2.2, col = "grey20")
+mtext("y axis", side = 2, outer = TRUE, cex = 0.7, line = 2.2, col = "grey20")
+```
+
+<div class="notes">
+
+We can eliminate the redundant axes, remove margin space, and reduce the emphasis
+on the structural (non-data) elements of the figure. 
+
+These are some of the frequent ???tricks??? you can use to create a basic multipanel layout that will focus the reader???s attention on trends in the data. If you aren???t familiar with an option for par(), look up the help: `?par`.
+
+</div>
+##
+
+```{r echo = FALSE}
+
+par(mfrow = c(2, 3), cex = 0.6, mar = c(0, 0, 0, 0), oma = c(4, 4, 0.5, 0.5), tcl = -0.25, mgp = c(2, 0.6, 0))
+
+for (i in 1:6) {
+  plot(1, axes = FALSE, type = "n")
+  mtext(letters[i], side = 3, line = -1, adj = 0.1, cex = 0.6)
+  
+  if (i %in% c(4, 5, 6)) axis(1, col = "grey40", col.axis = "grey20", at = seq(0.6, 1.2, 0.2))
+  if (i %in% c(1, 4)) axis(2, col = "grey40", col.axis = "grey20", at = seq(0.6, 1.2, 0.2))
+  box(col = "grey60")
+}
+mtext("x axis", side = 1, outer = TRUE, cex = 0.7, line = 2.2, col = "grey20")
+mtext("y axis", side = 2, outer = TRUE, cex = 0.7, line = 2.2, col = "grey20")
+
+```
+
+
+## Fancy Multipanel Layouts with `layout()`
+
+`layout()` takes a matrix and turns it into a layout. The numbers in the matrix correspond to the order that the panels will be plotted in. Cells with the same number represent a single panel.
+
+```{r}
+(m <- rbind(c(1, 1), c(2, 3)))
+layout(m)
+layout.show(3) # The number of the panels to show```
+```
+
+
+## 
+
+
+## 
+
+We can create some fairly complex layouts with `layout()`. For example, some panels empty can be left empty as margin space. 
+
+```{r }
+m <- matrix(c(1,2,3,4,5,6,7,7,7),nrow = 3,ncol = 3,byrow = TRUE)
+layout(mat = m,heights = c(0.4,0.4,0.2))
+par(oma = c(4, 4, 0.5, 0.5))
+plot_colors <- c("blue","black", "green", "orange", "pink", "yellow")
+for (i in 1:6){
+    par(mar = c(0, 0, 0, 0))
+    plot(runif(5),runif(5), axes=FALSE,col=plot_colors[i])
+    if (i %in% c(4, 5, 6)) axis(1, col = "grey40", col.axis = "grey20")
+    if (i %in% c(1, 4)) axis(2, col = "grey40", col.axis = "grey20")
+    box(col = "grey60")
+}
+par(mar = c(0, 0, 3, 0))
+plot(1, type = "n", axes=FALSE, xlab="", ylab="")
+legend(x = "top",inset = 0,
+        legend = c("A", "B", "C","D", "D", "E"), 
+        col=plot_colors, lwd=5, horiz = TRUE)
+?legend
+```
+
+We can set parameter values based on other data using `ifelse` function
+
+```{r}
+tib = tibble(day = 1:10, value=11:20)
+tib
+
+plot(tib$value, col=ifelse(tib$value%%3 == 0, "red","black"), pch=ifelse(tib$value%%2 == 0, 1, 2))
+```
+
+In the above example, we can first evaluate the value assigned to `col` and `pch`.
+```{r}
+(c=ifelse(tib$value%%3 == 0, "red","black"))
+(p=ifelse(tib$value%%2 == 0, 1, 2))
+
+```
+```plot(x=tib$value, col=ifelse(tib$value%%3 == 0, "red","black"), pch=ifelse(tib$value%%2 == 0, 1, 2))```
+
+is equivalent to 
+
+```plot(x=tib$value, col=c("black", "black", "red", "black", "black", "red", "black", "black", "red", "black"), pch=c(2, 1, 2, 1, 2, 1, 2, 1, 2, 1))```
+
+## Task:
+
+You are going to plot a graph to show the stock price, 50-day moving average, 200-day moving average, death cross and golden cross of Facebook and Apple inc. in year 2018.
+
+The datasets is the trimmed data containing the columns `date`, `Adjusted`(Adjusted Price), `x50day.SMA` (50-day simple moving average), `x200day.SMA` (200-day simple moving average) and `cross` (Death/Golden Cross happens on that day)
+
+For the value of `Nday.SMA`, it is the average close price of the previous N day. For example, the 50day.SMA of day 51 is `mean(close_price[1:50])`, where the `close_price` column was removed. The 200day.SMA of day 1000 is `mean(close_price[800:999])`
+
+![Death / Golden Cross](https://gale.in/wp-content/uploads/2018/10/INDOAMIN_112.25_%E2%96%B20.22_%E2%80%94_Unnamed_%E2%80%94_TradingView_-_2018-10-17_01.43.22.png)
+
+(The red line is 50-day moving average. The blue line is 200-day moving average.)
+
+The death cross is the intersection point of 50-day SMA and 200-day SMA that the 50-day SMA was previously higher than the 200-day SMA but now becomes lower.
+
+The golden cross is the intersection point of 50-day SMA and 200-day SMA that the 50-day SMA was previously lower than the 200-day SMA but now becomes higher.
+
+```{r}
+(FB = read_csv("FB.csv"))
+(AAPL = read_csv("AAPL.csv"))
+tail(AAPL)
+```
+
+Here are the sub-tasks you need to complete:
+
+- Plot 2 subgraphs; Upper one is for FB; Lower one is for AAPL;
+- For each company(FB and AAPL):
+  1. Plot a line graph (value: `Adjusted` column, style: dash line, darkgrey color)
+  2. Add a title "COMPANY_NAME stock pring 2018". (You can use `line=-1` to adjust title position)
+  3. Add a line to show the 50day-moving average (style: orange color)
+  4. Add a line to show the 200day-moving average (style: blue color)
+  5. If death cross happens on that day, add a red inverted triangle, and label "Death Cross"; If golden cross happens on that day, add a green triangle, and label "Golden Cross"
+  
+- For the first graph (FB):
+
+  - remove the x label and xtick
+  - add a legend at the bottom right corner
+  
+
+
+```{r task1}
+# Edit Here
+# (You also need to edit the given par())
+par(mfrow = c(2, 1), cex = 0.6, mar = c(0, 3, 0, 0), oma = c(4, 4, 0.5, 0.5),tcl = -0.25, mgp = c(2, 0.6, 0))
+
+
+```
+
+#### Expected Output:
+
+```{r echo=FALSE}
+par(mfrow = c(2, 1), cex = 0.6, mar = c(0, 3, 0, 0), oma = c(4, 4, 0.5, 0.5),tcl = -0.25, mgp = c(2, 0.6, 0))
+
+plot(FB$date, FB$Adjusted, type="l", lty=2, xaxt='n', ylab="Price", col="darkgrey")
+title(main="Facebook stock price 2018", line = -1)
+lines(FB$date, FB$x50day.SMA, col = "orange", lwd = 2)
+lines(FB$date, FB$x200day.SMA, col = "blue", lwd = 2)
+points(x = FB$date[!is.na(FB$cross)], y = FB$x50day.SMA[!is.na(FB$cross)], pch = ifelse(FB$cross[!is.na(FB$cross)] == "golden",24, 25), cex = 1.5, bg = ifelse(FB$cross[!is.na(FB$cross)] == "golden", "green", "red"))
+
+text(x = FB$date[!is.na(FB$cross)], y = FB$x50day.SMA[!is.na(FB$cross)]-5, ifelse(FB$cross[!is.na(FB$cross)] == "golden","Golden Cross", "Death Cross"), cex = .8)
+legend("bottomright", legend=c("Adjusted Price", "50-day moving average", "200-day moving average"), col = c("darkgrey", "orange", "blue"), lty=c(2, 1, 1), cex=0.8)
+
+
+#Write your code here~
+par(mar = c(3, 3, 0, 0))
+plot(AAPL$date, AAPL$Adjusted, type="l", lty=2, format = "%m", xlab="Date", ylab="Price", col="darkgrey")
+title(main="Apple stock price 2018", line = -1)
+lines(AAPL$date, AAPL$x50day.SMA, col = "orange", lwd = 2)
+lines(AAPL$date, AAPL$x200day.SMA, col = "blue", lwd = 2)
+points(x = AAPL$date[!is.na(AAPL$cross)], y = AAPL$x50day.SMA[!is.na(AAPL$cross)], pch = ifelse(AAPL$cross[!is.na(AAPL$cross)] == "golden",24, 25), cex = 1.5, bg = ifelse(AAPL$cross[!is.na(AAPL$cross)] == "golden", "green", "red"))
+
+text(x = AAPL$date[!is.na(AAPL$cross)], y = AAPL$x50day.SMA[!is.na(AAPL$cross)]-5, ifelse(AAPL$cross[!is.na(AAPL$cross)] == "golden","Golden Cross", "Death Cross"), cex = .8)
+
+#axis.Date(side = 1, at = seq(min(as.Date(AAPL$date)), max(as.Date(AAPL$date)+60), by = "2 mon"), format = "%m" )
+
+```
+
