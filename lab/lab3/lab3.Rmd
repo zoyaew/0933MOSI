@@ -107,17 +107,16 @@ library(MASS)
 ```{r Task3, type="sample-code", height="600", echo=FALSE}
 
 # 3.1 Use vector() to create an empty vector, summary_list,  which contains the same number of the elements as that of columns in UScereal and whose elements are lists.
-summary_list <- vector("list", 11)
+summary_list <- vector("list", length(UScereal))
 summary_list
 
 # 3.2 Specify the for loop with switch()
 for(i in seq_along(UScereal)){
-  x<-as.character(i)
-  switch(x, "1"=,
-            "11"={tmp_table <- sort(table(UScereal[[i]]), decreasing = T)
+  x<-as.character(is.factor(UScereal[[i]]))
+  switch(x, "TRUE"={tmp_table <- sort(table(UScereal[[i]]), decreasing = T)
                   summary_list[[i]] <- list(freq_table=tmp_table)},
-            summary_list[[i]] <-
-              list(mean=mean(UScereal[[i]]),median=median(UScereal[[i]])) )
+            "FALSE"={summary_list[[i]] <-
+              list(mean=mean(UScereal[[i]]),median=median(UScereal[[i]]))} )
 }
 summary_list
 
