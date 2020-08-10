@@ -22,7 +22,6 @@ Load the data into a dtaframe called `debt`.
 
 ```{r}
 ## use setwd() set the working directory to the folder to which the data file is downloaded
-#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab6")
 debt<-read.table("debt.csv",sep = ",", header = T)
 head(debt)
 ```
