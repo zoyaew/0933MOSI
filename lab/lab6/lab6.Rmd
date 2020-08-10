@@ -90,7 +90,6 @@ knew each other in a social network; the entry in row i, column j is 1 if person
 Load the file into R as `ckm_network`. It gives us a square matrix which contains only 0s and 1s, and that it has 125 rows and columns.
 
 ```{r}
-#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab6")
 ckm_network<-read.table("ckm_network_small.csv",sep=",", header = F)
 dim(ckm_network)
 ```
@@ -108,7 +107,6 @@ answer[41]
 One common use of networked data is to study "viral marketing": how a product spreads among persons in a social network. In order to do so, we need another dataset decribing indivudal persons and their adoption dates of the product so as to allow us to figure out the order of adoptions. The file `ckm_nodes_small.csv` has information about each individual in the social network.
 
 ```{r}
-#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab6")
 ckm_nodes<-read.table("ckm_nodes_small.csv", sep=",", header = T)
 dim(ckm_nodes)
 head(ckm_nodes)
