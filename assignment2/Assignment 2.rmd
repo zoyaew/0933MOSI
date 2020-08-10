@@ -29,7 +29,9 @@ options(width = 120)      # Increase the width of the printing region to show al
 **(a)** The `flights.csv` dataset stores all the flights that departed from New Yord City (i.e. airports JFK, LGA or EWR) in 2013. `dest` is the code of the destination airport, `arr_delay` is the arrival delay (in minutes).
 
 ```{r}
-flights <- read_csv("flights.csv", col_names = TRUE, col_types = cols())
+flights1 <- read_csv("flights.csv", col_names = TRUE, col_types = cols())
+flights2 <- read_csv("flights.csv", col_names = TRUE, col_types = cols())
+flights <- bind_rows(flights1, flights2)
 ```
 
 Calculate the number of flights from NYC (`flight_num`) and the average value of arrival delay (`aver_arr_delay`) for each destination (`dest`) and name the resulting data frame `flight.per.dest`. The expected result is as follows:
