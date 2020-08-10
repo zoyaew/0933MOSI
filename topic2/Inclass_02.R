@@ -90,7 +90,6 @@ detach(cars)
 # In this task, we're going to import an external dataset and explore it. 
 # The dataset `survey.csv` (csv is short for comma-separated values) can be downloaded from Canvas.
 
-setwd("C:/Users/LENOVO/Downloads/ISOM3390/topic2")
 survey = read.table("survey.csv", header = TRUE, sep = ",")   # return a data frame
 
 # (a) Use `head()` and `tail()` to pick the first and last 5 respondents. 
