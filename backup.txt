@@ -1,0 +1,339 @@
+---
+title: "Final Project: Sentiment Analysis on a Movie Review Corpus"
+author: "WAHYU, Zoya Estella 20462503"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r loadlib, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(RSelenium)
+library(rvest)
+library(tidyverse)
+library(tidytext)
+if (!require(corpus)) install.packages("corpus")
+library(corpus)
+```
+
+## Task 1
+The starting point could be this <https://www.imdb.com/chart/moviemeter?sort=rk,asc&mode=simple&page=1>.
+* The URLs of user review pages have the same pattern and can be construct programmatically.
+
+```{r}
+remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4444, browserName = "chrome")
+remDr$open(silent = TRUE)
+remDr$navigate("https://www.imdb.com/chart/moviemeter?sort=rk,asc&mode=simple&page=1")
+```
+
+We can put the list of the movie titles from the html source into results
+
+```{r}
+results <- remDr$getPageSource()[[1]] %>% read_html() %>% html_nodes(".titleColumn")
+```
+
+We can obtain the movie title and movie page by using the class "titleColumn" and the attribute "href" on node "a" respectively.
+Using URL parameters of attribute spoiler, we can also hide spoilers from the reviews.
+
+```{r}
+movie_titles <- character()
+review_pages <- character()
+for(i in 1:100){
+  title <- results[i] %>% html_text(trim = TRUE) %>%
+    {str_sub(.,1,str_locate(.,"\\n")[,"start"]-1)}
+  movie_titles <- c(movie_titles,title)
+  
+  page <- results[i] %>% html_nodes("a") %>% html_attr("href") %>% str_c("https://www.imdb.com",.)
+  #front_index <- page %>% {str_locate(.,"pf_rd_m=")[,"start"]-2}
+  #back_index <- page %>% {str_locate(.,"ref_=")[,"start"]}
+  review_page <- page %>% str_extract(".*/?pf_rd_m=") %>% str_sub(1,-10) %>% str_c("reviews")
+  review_pages <- c(review_pages,review_page)
+}
+
+rm(results, i, title, page, review_page) #DEBUG
+
+```
+
+## Task 2
+Collect user reviews and ratings (note that some reviews may have no ratings) for
+100 movies, 100 reviews per movie (with spoilers excluded; note that on each review
+page, there is a checkbox labeled "Hide Spoilers").
+* Use R Selenium (covered in the last lab) to render full content before scraping a user review page:
+ + tick the checkbox to hide spoilers
+ + load all reviews for each movie by repeatedly clicking the “load more” button at the bottom of a review page. The number of clicks can be determined by the number of reviews displayed above the "Hide Spoilers" checkbox.
+ + load the text content for each long review by clicking the down arrow button.
+
+We can go to all of the movie pages by using the links that we have saved in movie_pages.
+We can see that the page shows 25 reviews, and when we press the "Load More" button, the page will show 25 more reviews. Therefore, we need to press the "Load More" button 3 times to get 100 reviews on each movie.
+
+```{r}
+# Prepare vectors of length 100*length(movie_titles)
+reviews <- vector(length = 100*length(movie_titles))
+ratings <- vector(length = 100*length(movie_titles))
+
+```
+
+Use iteration to get all movie reviews and ratings
+
+```{r}
+
+for(i in seq_along(review_pages)){
+#for(i in 88:100) { # DEBUG
+  
+  remDr$navigate(review_pages[i])
+  Sys.sleep(2)
+  
+  hide_spoiler <- remDr$findElements(using = "css", ".faceter-facets-text")
+  hide_spoiler[[1]]$clickElement()
+  Sys.sleep(2)
+  
+  review_count <- remDr$getPageSource()[[1]] %>% read_html %>%
+    html_nodes(".header") %>% html_nodes("span") %>% html_text(trim = TRUE) %>% .[1] %>%
+    str_replace(pattern = " Reviews| Review", replace = "") %>%
+    str_replace(pattern = ",", replace = "") %>%
+    as.numeric()
+  if(review_count == 0){
+    next # If there is no review, we can skip scraping the review and go to the next movie
+  } else if(review_count>100){
+    review_count=100 # We only need to scrap 100 reviews per movie
+  }
+  
+  # If review_count > 25, we need to click the "load more" button as many as specified from load_count
+  load_count <- (review_count-1) %/% 25
+  if(load_count != 0){
+    for(j in seq_len(load_count)){
+      load_more <- remDr$findElements(using = "id", "load-more-trigger")
+      load_more[[1]]$clickElement()
+      Sys.sleep(2)
+    }
+  }
+  
+  # load the text content for each long review by clicking the down arrow button
+  expander_list <- remDr$findElements(using = "css", ".expander-icon-wrapper.show-more__control")
+  for(k in seq_along(expander_list)){
+    expander_list[[k]]$clickElement()
+  }
+  
+  contents <- remDr$getPageSource()[[1]] %>% read_html %>% html_nodes(".lister-item-content")
+
+  for(k in seq_along(contents)){
+    ratings[100*(i-1)+k] <- contents[[k]] %>%
+      html_nodes(".rating-other-user-rating") %>%
+      html_text(trim=T) %>% str_replace(pattern = "/10", replacement = "") %>%
+      {ifelse(length(.)==0, NA, as.numeric(.))}
+    reviews[100*(i-1)+k] <- contents[[k]] %>%
+      html_nodes(".text.show-more__control") %>%
+      html_text(trim=T)
+  }
+}
+rm(remDr, i, j, k,
+   load_count, load_more, review_count,
+   hide_spoiler, expander_list, contents) #DEBUG
+
+```
+
+We save them as tibbles to our local file directory
+
+```{r}
+getwd()
+write_csv(tibble(titles=rep(movie_titles, rep(100,100)), reviews, ratings), "reviews.csv")
+```
+
+Reading the csv
+
+```{r}
+tb <- read_csv("reviews.csv", col_names = TRUE)
+```
+## Task 3
+Sample 2500 positive reviews and 2500 negative reviews (for example, a movie receiving a rating higher than 6 is considered positive or getting thumbs-up, while one with a rating less than 5 is negative or getting thumbs-down) to form a movie review corpus.
+* Note that the most noteworthy fact for review corpora collected from the Web is that the majority of reviews are highly positive, with 6-star to 10-star reviews. If you cannot find a sufficient number of negative reviews from your 10,000 reviews, report the imbalance of the distribution.
+
+We convert the tibbles into vectors:
+
+```{r}
+
+pos_reviews <- tb %>% filter(ratings>=6)
+neg_reviews <- tb %>% filter(ratings<=5 & ratings!=0)
+#na_rev <- tb %>% filter(is.na(ratings) | ratings==0) #DEBUG
+#rm(na_rev) #DEBUG
+
+set.seed(1)
+pos_sample <- nrow(pos_reviews) %>% {sample(seq_len(.), min(.,2500))} %>%
+  pos_reviews[.,] %>% transmute(index = row_number(), reviews, ratings)
+set.seed(1)
+neg_sample <- nrow(neg_reviews) %>% {sample(seq_len(.), min(.,2500))} %>%
+  neg_reviews[.,] %>% transmute(index = row_number(), reviews, ratings)
+
+```
+
+## Task 4
+Use the **BING** lexicon to find sentiment-associated words and predict sentiment for each review. Evaluate outcomes by contrasting them with actual ratings.
+
+Get sentiments from the positive and negative review samples:
+
+```{r}
+
+pos_words <- pos_sample %>% unnest_tokens(word, reviews) %>%
+  anti_join(stop_words, by = "word")
+pos_sentiments <- pos_words %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(index, ratings, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(ratings, sentiment = positive - negative)
+  #%>% transmute(ratings, sentiment) #DEBUG
+#write_csv(pos_sentiments, "sentiments.csv") #DEBUG
+
+neg_words <- neg_sample %>% unnest_tokens(word, reviews) %>%
+  anti_join(stop_words, by = "word")
+neg_sentiments <- neg_words %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(index, ratings, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(ratings, sentiment = positive - negative)
+
+```
+
+Getting the tibble for all sentiments:
+
+```{r}
+
+all_sentiments <- bind_rows(pos_sentiments, neg_sentiments) %>% transmute(ratings, sentiment)
+count_sentiments <- all_sentiments %>% count(ratings, sentiment, name="count")
+summarise_sentiments <- all_sentiments %>% group_by(ratings) %>%
+  summarise(median=median(sentiment), mean=mean(sentiment), sd=sd(sentiment), total=n())
+sentiments_tb <- left_join(count_sentiments, summarise_sentiments, by="ratings")
+
+```
+
+Plotting for Task 4:
+
+```{r}
+
+ggplot(sentiments_tb, aes(sentiment)) + 
+  facet_wrap(~ ratings, ncol=2, dir="v") +
+  geom_histogram(data=all_sentiments, mapping=aes(sentiment), binwidth=1, colour = "white", fill="black") +
+  geom_vline(data=summarise_sentiments,
+             aes(xintercept=mean, colour=mean), linetype="dashed") +
+  geom_label(data=summarise_sentiments,
+             aes(x=ifelse(mean>0, 7, ifelse(mean<0, -9, 0)), y=180,
+                 label=signif(mean,3), colour=mean),
+             label.size=NA, size=2.5) +
+  geom_line(aes(y=dnorm(sentiment, mean, sd)*total, colour=mean)) +
+  scale_colour_gradient2(low="red", high="blue", mid="grey25") +
+  theme_classic()
+
+
+```
+
+## Task 5
+Find 5 most commonly-used positive and negative words in the corpus. Create a multipanel plot. In each panel, plot a graphic similar to the following one, which describes the extent to which a word affects the rating of the review where it appears. Specifically, w represents the word, while c represents categories defined in terms of ratings. For instance, the point at rating 3 means that a review containing "disappoint" has probability 0.14 of receiving rating 3.
+
+```{r}
+
+word_sentiment_rating <- bind_rows(pos_sample, neg_sample) %>%
+  unnest_tokens(word, reviews) %>%
+  anti_join(stop_words, by = "word") %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  transmute(ratings, word, stem_word=(text_tokens(word, stemmer="en") %>% unlist), sentiment)
+
+pos_5 <- word_sentiment_rating %>%
+  filter(sentiment=="positive") %>%
+  count(stem_word, sentiment, sort=TRUE) %>%
+  bind_cols("word"=NA) %>%
+  head(5)
+for(i in seq_along(pos_5$stem_word)){
+  pos_5$word[i] <- word_sentiment_rating %>%
+    filter(stem_word==pos_5$stem_word[i]) %>%
+    {unique(.$word)} %>%
+    str_remove_all(pos_5$stem_word[i]) %>%
+    .[.!=""] %>%
+    str_c(collapse="/")
+}
+writeLines(str_c("5 most commonly-used positive words:",
+                 str_c(pos_5$stem_word,
+                       ifelse(pos_5$word!="", str_c("(", pos_5$word, ") "), " "), pos_5$n, " times",
+                       collapse="\n"),
+                 sep="\n"))
+writeLines("\n")
+
+neg_5 <- word_sentiment_rating %>%
+  filter(sentiment=="negative") %>%
+  count(stem_word, sentiment, sort=TRUE) %>%
+  bind_cols("word"=NA) %>%
+  head(5)
+for(i in seq_along(neg_5$stem_word)){
+  neg_5$word[i] <- word_sentiment_rating %>%
+    filter(stem_word==neg_5$stem_word[i]) %>%
+    {unique(.$word)} %>%
+    str_remove_all(neg_5$stem_word[i]) %>%
+    .[.!=""] %>%
+    str_c(collapse="/")
+}
+writeLines(str_c("5 most commonly-used negative words:",
+                 str_c(neg_5$stem_word,
+                       ifelse(neg_5$word!="", str_c("(", neg_5$word, ") "), " "), neg_5$n, " times",
+                       collapse="\n"),
+                 sep="\n"))
+
+```
+
+
+Filter the top 5 words from the corpus and get their distribution of ratings:
+
+```{r}
+
+pos_5_ratings <- word_sentiment_rating %>%
+  select(stem_word, ratings) %>%
+  filter(stem_word %in% pos_5[[1]]) %>%
+  count(stem_word, ratings) %>%
+  arrange(factor(stem_word, levels = pos_5[[1]])) %>%
+  group_by(stem_word) %>%
+  mutate(percentage=n/sum(n))
+
+neg_5_ratings <- word_sentiment_rating %>%
+  select(word, ratings) %>%
+  filter(word %in% neg_5[[1]]) %>%
+  count(word, ratings) %>%
+  arrange(factor(word, levels = neg_5[[1]])) %>%
+  group_by(word) %>%
+  mutate(percentage=n/sum(n))
+
+```
+
+Plot the distribution:
+
+```{r}
+
+ggplot(pos_5_ratings, aes(ratings, percentage)) +
+  facet_wrap(~ word, scales="free_y", repeat.tick.labels = TRUE) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq_len(10)) +
+  theme(strip.background = element_rect(fill = NA),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(size=.1, color="grey75" ),
+        panel.background = element_rect(fill = NA),
+        panel.border=element_blank(),
+        axis.line=element_line() )
+
+```
+
+
+
+snjkejxken
+xenkce
+
+
+
+
+
+
+
+cenjkef
