@@ -8,11 +8,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Load the required library for the project:
 
 ```{r loadlib, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 library(RSelenium)
@@ -20,12 +16,20 @@ library(rvest)
 library(tidyverse)
 library(tidytext)
 if (!require(corpus)) install.packages("corpus")
-library(corpus)
+library(corpus) # will be used for word stemming to call text_tokens
+if (!require(lemon)) install.packages("lemon")
+library(lemon) # will be used to call coord_capped_cart 
 ```
 
 ## Task 1
-The starting point could be this <https://www.imdb.com/chart/moviemeter?sort=rk,asc&mode=simple&page=1>.
-* The URLs of user review pages have the same pattern and can be construct programmatically.
+
+Instruction:
+The starting point could be this webpage (Links to an external site.).
+* The URLs of user review pages have the same pattern and can be construct
+programmatically.
+
+Instantiate a new remoteDriver to connect to a running server.
+Then, use the open method to open the browser and navigate to the specified URL.
 
 ```{r}
 remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4444, browserName = "chrome")
@@ -62,6 +66,8 @@ rm(results, i, title, page, review_page) #DEBUG
 ```
 
 ## Task 2
+
+Instruction:
 Collect user reviews and ratings (note that some reviews may have no ratings) for
 100 movies, 100 reviews per movie (with spoilers excluded; note that on each review
 page, there is a checkbox labeled "Hide Spoilers").
@@ -139,60 +145,100 @@ rm(remDr, i, j, k,
 
 ```
 
-We save them as tibbles to our local file directory
+We save them as tibbles to our local file directory.
 
 ```{r}
 getwd()
 write_csv(tibble(titles=rep(movie_titles, rep(100,100)), reviews, ratings), "reviews.csv")
 ```
 
-Reading the csv
+Reading the csv and put it on a tibble named tb.
 
 ```{r}
 tb <- read_csv("reviews.csv", col_names = TRUE)
 ```
 ## Task 3
+
+Instruction:
 Sample 2500 positive reviews and 2500 negative reviews (for example, a movie receiving a rating higher than 6 is considered positive or getting thumbs-up, while one with a rating less than 5 is negative or getting thumbs-down) to form a movie review corpus.
 * Note that the most noteworthy fact for review corpora collected from the Web is that the majority of reviews are highly positive, with 6-star to 10-star reviews. If you cannot find a sufficient number of negative reviews from your 10,000 reviews, report the imbalance of the distribution.
 
-We convert the tibbles into vectors:
+We first separate reviews according to the ratings, wherein a review of rating greater than 6 will be considered as a positive review and if the rating is less than 5 will be considered as a negative review.
 
-```{r}
+```{r separate reviews}
 
 pos_reviews <- tb %>% filter(ratings>=6)
-neg_reviews <- tb %>% filter(ratings<=5 & ratings!=0)
-#na_rev <- tb %>% filter(is.na(ratings) | ratings==0) #DEBUG
-#rm(na_rev) #DEBUG
 
-set.seed(1)
-pos_sample <- nrow(pos_reviews) %>% {sample(seq_len(.), min(.,2500))} %>%
-  pos_reviews[.,] %>% transmute(index = row_number(), reviews, ratings)
-set.seed(1)
-neg_sample <- nrow(neg_reviews) %>% {sample(seq_len(.), min(.,2500))} %>%
-  neg_reviews[.,] %>% transmute(index = row_number(), reviews, ratings)
+# We exclude ratings==0 from neg_reviews as it represents reviews which has no ratings.
+neg_reviews <- tb %>% filter(ratings<=5 & ratings!=0)
 
 ```
 
+From all the reviews available, we randomly sample 2,500 reviews from each group.
+
+```{r positive and negative review sample}
+writeLines(paste("Total positive reviews:", nrow(pos_reviews)))
+writeLines(paste("Total negative reviews:", nrow(neg_reviews)))
+
+set.seed(1)
+pos_sample <- nrow(pos_reviews) %>%
+  # Get 2500 random numbers from 1 to nrow(pos_reviews)
+  # If nrow(pos_reviews) <= 2500, all numbers from 1 to nrow(pos_reviews) will be obtained
+  {sample(seq_len(.), min(.,2500))} %>%
+  # The random numbers will be used as the index of the reviews to be selected
+  pos_reviews[.,] %>%
+  # Only select the "index", "reviews", and "ratings" column
+  transmute(index = row_number(), reviews, ratings)
+
+# Similarly, for the negative sample:
+set.seed(1)
+neg_sample <- nrow(neg_reviews) %>%
+  {sample(seq_len(.), min(.,2500))} %>%
+  neg_reviews[.,] %>%
+  transmute(index = row_number(), reviews, ratings)
+
+writeLines(paste("Total positive review sample:", nrow(pos_sample)))
+writeLines(paste("Total negative review sample:", nrow(neg_sample)))
+
+# These data will not be used anymore for future analysis, so we can safely remove them.
+rm(tb, pos_reviews, neg_reviews) #debug
+
+```
+We can see from above that the total negative reviews available is less than 2500 due to the imbalance of the reviews' ratings distribution.
+Therefore, the negative review sample will be identical to its population.
+
+
 ## Task 4
+
+Instruction:
 Use the **BING** lexicon to find sentiment-associated words and predict sentiment for each review. Evaluate outcomes by contrasting them with actual ratings.
 
-Get sentiments from the positive and negative review samples:
+Get the sentiment value for each index/review from the positive and negative review samples:
 
-```{r}
+```{r get sentiments}
 
-pos_words <- pos_sample %>% unnest_tokens(word, reviews) %>%
-  anti_join(stop_words, by = "word")
-pos_sentiments <- pos_words %>%
+pos_sentiments <- pos_sample %>%
+  # Tokenize all reviews by word
+  unnest_tokens(word, reviews) %>%
+  # Remove the not informative words from the tibble
+  anti_join(stop_words, by = "word") %>%
+  # Add a "sentiment" column that will predict the sentiment of the corresponding word
   inner_join(get_sentiments("bing"), by = "word") %>%
+  # Count the number of positive and negative sentiment words on each review/index
   count(index, ratings, sentiment) %>%
+  # Convert the tibble into a wide format by creating "negative" and "positive" sentiment column
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  # Add a "sentiment" column which is used as
+  #  the point difference between the total positive and negative sentiment words on each index
+  # If the "sentiment" has a positive value,
+  #  it means that there are more positive words than negative words on that index, and vice versa
   mutate(ratings, sentiment = positive - negative)
-  #%>% transmute(ratings, sentiment) #DEBUG
-#write_csv(pos_sentiments, "sentiments.csv") #DEBUG
 
-neg_words <- neg_sample %>% unnest_tokens(word, reviews) %>%
-  anti_join(stop_words, by = "word")
-neg_sentiments <- neg_words %>%
+
+# Similarly, for the negative sentiments:
+neg_sentiments <- neg_sample %>%
+  unnest_tokens(word, reviews) %>%
+  anti_join(stop_words, by = "word") %>%
   inner_join(get_sentiments("bing"), by = "word") %>%
   count(index, ratings, sentiment) %>%
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
@@ -202,13 +248,22 @@ neg_sentiments <- neg_words %>%
 
 Getting the tibble for all sentiments:
 
-```{r}
+```{r message=FALSE}
 
-all_sentiments <- bind_rows(pos_sentiments, neg_sentiments) %>% transmute(ratings, sentiment)
-count_sentiments <- all_sentiments %>% count(ratings, sentiment, name="count")
-summarise_sentiments <- all_sentiments %>% group_by(ratings) %>%
-  summarise(median=median(sentiment), mean=mean(sentiment), sd=sd(sentiment), total=n())
+# For each rating, count how many indices/reviews have a certain sentiment value
+count_sentiments <- bind_rows(pos_sentiments, neg_sentiments) %>%
+  count(ratings, sentiment, name="count")
+
+# For each review, get the mean, sd, and number of sentiments
+summarise_sentiments <- bind_rows(pos_sentiments, neg_sentiments) %>%
+  group_by(ratings) %>%
+  # Here, total = number of reviews on each rating
+  summarise(mean=mean(sentiment), sd=sd(sentiment), total=n())
+
+# Add the summary of the sentiments to count_sentiment, and save it on sentiments_tb
 sentiments_tb <- left_join(count_sentiments, summarise_sentiments, by="ratings")
+
+sentiments_tb
 
 ```
 
@@ -218,7 +273,8 @@ Plotting for Task 4:
 
 ggplot(sentiments_tb, aes(sentiment)) + 
   facet_wrap(~ ratings, ncol=2, dir="v") +
-  geom_histogram(data=all_sentiments, mapping=aes(sentiment), binwidth=1, colour = "white", fill="black") +
+  geom_histogram(data=bind_rows(pos_sentiments, neg_sentiments),
+                 mapping=aes(sentiment), binwidth=1, colour = "white", fill="black") +
   geom_vline(data=summarise_sentiments,
              aes(xintercept=mean, colour=mean), linetype="dashed") +
   geom_label(data=summarise_sentiments,
@@ -229,65 +285,108 @@ ggplot(sentiments_tb, aes(sentiment)) +
   scale_colour_gradient2(low="red", high="blue", mid="grey25") +
   theme_classic()
 
+# These data will not be used anymore for future analysis, so we can safely remove them.
+rm(pos_sentiments, neg_sentiments,
+   count_sentiments, summarise_sentiments, sentiments_tb) #debug
 
 ```
 
 ## Task 5
+
+Instruction:
 Find 5 most commonly-used positive and negative words in the corpus. Create a multipanel plot. In each panel, plot a graphic similar to the following one, which describes the extent to which a word affects the rating of the review where it appears. Specifically, w represents the word, while c represents categories defined in terms of ratings. For instance, the point at rating 3 means that a review containing "disappoint" has probability 0.14 of receiving rating 3.
+
+Get all words in both positive and negative review sample, and find the word sentiment and the word stem.
+
+```{r ratings vs word vs stem_word vs sentiment}
+
+word_sentiment_rating <- bind_rows(pos_sample, neg_sample) %>%
+  # Tokenize all reviews by word
+  unnest_tokens(word, reviews) %>%
+  # Remove the not informative words from the tibble
+  anti_join(stop_words, by = "word") %>%
+  # Add a "sentiment" column that will predict the sentiment of the corresponding word
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  # Remove the "index" column and add the "stem_word" column that stands for the word stem of the words in the "word" column
+  transmute(ratings, word, stem_word=(text_tokens(word, stemmer="en") %>% unlist), sentiment)
+
+word_sentiment_rating
+
+```
+
+Get top 5 frequently used positive and negative stemmed words by counting the words and their sentiments from the data in "word_sentiment_rating".
 
 ```{r}
 
-word_sentiment_rating <- bind_rows(pos_sample, neg_sample) %>%
-  unnest_tokens(word, reviews) %>%
-  anti_join(stop_words, by = "word") %>%
-  inner_join(get_sentiments("bing"), by = "word") %>%
-  transmute(ratings, word, stem_word=(text_tokens(word, stemmer="en") %>% unlist), sentiment)
-
+# We first focus only on getting top 5 stem words with positive sentiments
 pos_5 <- word_sentiment_rating %>%
+  # Filter only rows which have positive sentiments
   filter(sentiment=="positive") %>%
+  # Count the number of occurence of a certain "stem_word" appear in "word_sentiment_rating"
   count(stem_word, sentiment, sort=TRUE) %>%
-  bind_cols("original_word"=NA) %>%
+  # Add another row which will later be used to save the derived/original word suffixes
+  bind_cols("word_suffixes"=NA) %>%
+  # Get the top 5 frequently used stem words
   head(5)
-for(i in seq_along(pos_5$stem_word)){
-  pos_5$original_word[i] <- word_sentiment_rating %>%
+
+# This iteration will be used to fill in the "word_suffixes" column
+for(i in seq_len(nrow(pos_5))){
+  pos_5$word_suffixes[i] <- word_sentiment_rating %>%
+    # Filter only rows which contain the top 5 stem words
     filter(stem_word==pos_5$stem_word[i]) %>%
+    # Obtain the distinct derived word from the "word" column in "word_sentiment_rating"
     {unique(.$word)} %>%
+    # Get only the suffixes of the derived word by removing the stem word from the word itself
     str_remove_all(pos_5$stem_word[i]) %>%
+    # Remove the original word that is identical to the word stem from the word suffixes vector
     .[.!=""] %>%
+    # Combine all the suffixes into a single string
     str_c(collapse="/")
-  if(pos_5$original_word[i]=="") pos_5$original_word[i]=NA
+  # When the string is empty, it means there is no additional word suffix for the word stem
+  # So, we can put NA to the corresponding cell
+  if(pos_5$word_suffixes[i]=="") pos_5$word_suffixes[i]=NA
 }
-writeLines(str_c("5 most commonly-used positive words:",
+
+# Report the findings
+writeLines(str_c("Top 5 most commonly-used positive words:",
                  str_c(pos_5$stem_word,
-                       ifelse(!is.na(pos_5$original_word), str_c("(", pos_5$original_word, ") "), " "), pos_5$n, " times",
+                       ifelse(!is.na(pos_5$word_suffixes), str_c("(", pos_5$word_suffixes, ") "), " "), pos_5$n, " times",
                        collapse="\n"),
                  sep="\n"))
 writeLines("\n")
 
+
+
+# Similarly, for top 5 most frequently used negative stemmed words:
+
 neg_5 <- word_sentiment_rating %>%
   filter(sentiment=="negative") %>%
   count(stem_word, sentiment, sort=TRUE) %>%
-  bind_cols("original_word"=NA) %>%
+  bind_cols("word_suffixes"=NA) %>%
   head(5)
-for(i in seq_along(neg_5$stem_word)){
-  neg_5$original_word[i] <- word_sentiment_rating %>%
+
+for(i in seq_len(nrow(neg_5))){
+  neg_5$word_suffixes[i] <- word_sentiment_rating %>%
     filter(stem_word==neg_5$stem_word[i]) %>%
     {unique(.$word)} %>%
     str_remove_all(neg_5$stem_word[i]) %>%
     .[.!=""] %>%
     str_c(collapse="/")
-  if(neg_5$original_word[i]=="") neg_5$original_word[i]=NA
+  if(neg_5$word_suffixes[i]=="") neg_5$word_suffixes[i]=NA
 }
-writeLines(str_c("5 most commonly-used negative words:",
+
+writeLines(str_c("Top 5 most commonly-used negative words:",
                  str_c(neg_5$stem_word,
-                       ifelse(!is.na(neg_5$original_word), str_c("(", neg_5$original_word, ") "), " "), neg_5$n, " times",
+                       ifelse(!is.na(neg_5$word_suffixes), str_c("(", neg_5$word_suffixes, ") "), " "), neg_5$n, " times",
                        collapse="\n"),
                  sep="\n"))
 
+# These data will not be used anymore for future analysis, so we can safely remove them.
+rm(pos_sample, neg_sample, i) #debug
+
 ```
 
-
-Filter the top 5 words from the corpus and get their distribution of ratings:
+After securing the top 5 positive and negative sentiments' stem words, we should get the rating distribution for each of the 10 words by filtering and counting the appropriate rows from the "word_sentiment_rating" corpus.
 
 ```{r}
 
@@ -298,8 +397,8 @@ pos_5_ratings <- word_sentiment_rating %>%
   group_by(stem_word) %>%
   mutate(percentage=n/sum(n)) %>%
   ungroup %>%
-  left_join(bind_cols("stem_word"=pos_5$stem_word, "original_word"=pos_5$original_word), by="stem_word") %>%
-  bind_cols(as_tibble(ifelse(!is.na(.$original_word), str_c(.$stem_word, "(", .$original_word, ") "), .$stem_word))) %>%
+  left_join(bind_cols("stem_word"=pos_5$stem_word, "word_suffixes"=pos_5$word_suffixes), by="stem_word") %>%
+  bind_cols(as_tibble(ifelse(!is.na(.$word_suffixes), str_c(.$stem_word, "(", .$word_suffixes, ") "), .$stem_word))) %>%
   select(word=value, ratings, n, percentage)
 
 neg_5_ratings <- word_sentiment_rating %>%
@@ -310,58 +409,60 @@ neg_5_ratings <- word_sentiment_rating %>%
   group_by(stem_word) %>%
   mutate(percentage=n/sum(n)) %>%
   ungroup %>%
-  left_join(bind_cols("stem_word"=neg_5$stem_word, "original_word"=neg_5$original_word), by="stem_word") %>%
-  bind_cols(as_tibble(ifelse(!is.na(.$original_word), str_c(.$stem_word, "(", .$original_word, ") "), .$stem_word))) %>%
+  left_join(bind_cols("stem_word"=neg_5$stem_word, "word_suffixes"=neg_5$word_suffixes), by="stem_word") %>%
+  bind_cols(as_tibble(ifelse(!is.na(.$word_suffixes), str_c(.$stem_word, "(", .$word_suffixes, ") "), .$stem_word))) %>%
   select(word=value, ratings, n, percentage)
+
+# These data will not be used anymore for future analysis, so we can safely remove them.
+#rm(word_sentiment_rating, pos_5, neg_5) #debug
 
 ```
 
-Plot the distribution using ggplot:
+Plot the rating distribution for each top 5 stem word of positive sentiment using ggplot.
 
-```{r}
-#USE THIS
+```{r "Top 5 Positive Words Rating Distribution" plot}
+
 ggplot(pos_5_ratings, aes(ratings, percentage)) +
   facet_wrap(~ word, scales="free") +
   geom_point() +
   geom_line() +
+  coord_capped_cart(bottom="both", left="none") +
   scale_x_continuous(breaks = seq_len(10)) +
-  labs(x="Rating",y="Pr(c|w)",shape="") +
+  labs(title="Top 5 Positive Words Rating Distribution", x="Rating", y="Pr(c|w)") +
   theme(strip.background = element_rect(fill = NA),
         panel.grid.major.x = element_blank(),
         panel.grid.major.y = element_line(size=.1, color="grey75" ),
         panel.background = element_rect(fill = NA),
-        panel.border=element_blank(),
-        axis.line=element_line() )
-
+        panel.border = element_blank(),
+        axis.line = element_line(),
+        axis.ticks.length = unit(.15, "cm"),
+        strip.text = element_text(face="bold", hjust=0))
 
 ```
 
+Similarly, for the rating distribution of top 5 stem words with negative sentiments, we can plot it this way.
 
-```{r}
-#DON'T USE THIS #debug
-ggplot(pos_5_ratings, aes(ratings, percentage)) +
-  facet_wrap(~ stem_word, scales="free_y", repeat.tick.labels = TRUE) +
+```{r "Top 5 Negative Words Rating Distribution" plot}
+
+ggplot(neg_5_ratings, aes(ratings, percentage)) +
+  facet_wrap(~ word, scales="free") +
   geom_point() +
   geom_line() +
+  coord_capped_cart(bottom="both", left="none") +
   scale_x_continuous(breaks = seq_len(10)) +
+  labs(title="Top 5 Negative Words Rating Distribution", x="Rating", y="Pr(c|w)") +
   theme(strip.background = element_rect(fill = NA),
         panel.grid.major.x = element_blank(),
         panel.grid.major.y = element_line(size=.1, color="grey75" ),
         panel.background = element_rect(fill = NA),
-        panel.border=element_blank(),
-        axis.line=element_line() )
+        panel.border = element_blank(),
+        axis.line = element_line(),
+        axis.ticks.length = unit(.15, "cm"),
+        strip.text = element_text(face="bold", hjust=0))
 
+# These data will not be used anymore for future analysis, so we can safely remove them.
+#rm(pos_5_ratings, neg_5_ratings) #debug
 ```
 
 
-
-snjkejxken
-xenkce
-
-
-
-
-
-
-
-cenjkef
+The multipanel plot above shows
