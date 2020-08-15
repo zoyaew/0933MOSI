@@ -1,6 +1,6 @@
 ---
 title: "Final Project: Sentiment Analysis on a Movie Review Corpus"
-author: "WAHYU, Zoya Estella 20462503"
+author: "zewahyu"
 output: html_document
 ---
 
