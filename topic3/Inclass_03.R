@@ -88,7 +88,6 @@ while(sum!=0){
 }
 
 ################# Task 5: Groupwise data summarization ###############
-setwd("C:/Users/LENOVO/Downloads/ISOM3390/topic3")
 pros.dat <- read.table("pros.dat")
 str(pros.dat) 
 head(pros.dat)
