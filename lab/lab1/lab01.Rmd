@@ -21,7 +21,7 @@ output: html_document
 
 Refers to the Markdown Cheatsheet, create a small table with 2 columns: "Course Code" and "Course Title".
 And 2 rows:
-"ISOM3390" - "Business Programming in R"
+"ISOM3360" - "Data Mining for Business Analytics"
 "ISOM3210" -  "Information Systems Analysis and Design"
 
 The course codes are in italics.
@@ -29,7 +29,7 @@ The course codes are in italics.
 ## Answer for Task1
 Course Code | Course Title
 ------------|------------
-*ISOM3390* | Business Programming in R
+*ISOM3360* | Data Mining for Business Analytics
 *ISOM3210* | Information Systems Analysis and Design
 
 
