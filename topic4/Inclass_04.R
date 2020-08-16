@@ -5,7 +5,6 @@
 # (a) Rewrite the code (from Task 5 of the 3rd in-class exercise) as a function 
 # with the name `groupwise.sum.fun` and the parameter list `(data, columns, grouping)`. 
 # It should allow users to change the data frame, the columns and the grouping rule. 
-setwd("C:/Users/LENOVO/Downloads/ISOM3390/topic4")
 pros.dat <- read.table("pros.dat")
 
 groupwise.sum.fun <- function(data, columns, grouping){
