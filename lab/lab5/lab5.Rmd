@@ -104,7 +104,6 @@ An important claim in economics is that the rate of GDP growth is closely relate
 Load the data into a dtaframe called `debt`.  
 
 ```{r}
-#setwd("C:/Users/LENOVO/Downloads/ISOM3390/lab/lab5")
 debt<-read.table("debt.csv",sep = ",", header = T)
 head(debt)
 ```
